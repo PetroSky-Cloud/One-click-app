@@ -1,9 +1,6 @@
 #!/bin/bash
 
-apt-get -y -qq install net-tools curl
-curl -s https://netangels.net/utils/docker.sh | bash
-
-clear
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
 
 clear
 
@@ -30,7 +27,7 @@ echo $fullname
 if [ "$DOMAIN" = "" ]; then
     echo "installing without certificates and proper TLS termination"
 else
-    curl -s https://netangels.net/utils/caddy.sh | bash -s -- $DOMAIN 8000 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 8000 false
 fi
 
 
@@ -41,4 +38,4 @@ docker run -it --rm \
     appwrite/appwrite:1.8.0
 
 
-rm -f /etc/profile.d/appwrite.sh
+rm -f /etc/profile.d/install.sh
