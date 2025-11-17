@@ -1,10 +1,5 @@
 #!/bin/bash
 
-sleep 30
-
-apt-get update
-apt-get install curl
-
 clear
 
 RED='\e[31m'
@@ -17,7 +12,7 @@ echo
 echo
 echo -e ${GRN} "# ------------------------------------------------------------- #"
 echo -e ${GRN} "# ${BLU}WELCOME TO OUR INSTALL SCRIPT, PLEASE ANSWER TO FEW QUESTIONS ${GRN}#"
-echo -e ${GRN}  "# ------------------------------------------------------------- #"
+echo -e ${GRN} "# ------------------------------------------------------------- #"
 echo
 echo -e ${YEL}
 
@@ -26,12 +21,12 @@ read DOMAIN
 
 echo -e ${DEF}
 
-curl -s https://netangels.net/utils/docker.sh | bash
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
 
 if [ "$DOMAIN" = "" ]; then
     echo "installing without certificates and proper TLS termination"
 else
-    curl -s https://netangels.net/utils/caddy.sh | bash -s -- $DOMAIN 9001 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 9001 false
 fi
 
 cd /opt
@@ -51,4 +46,4 @@ echo Password: this_password_is_insecure_and_should_be_updated
 echo -e ${DEF}
 
 
-rm -f /etc/profile.d/supabase.sh
+rm -f /etc/profile.d/install.sh

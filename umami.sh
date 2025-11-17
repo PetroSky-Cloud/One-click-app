@@ -1,8 +1,5 @@
 #!/bin/bash
 
-apt-get update
-apt-get install curl
-
 clear
 
 RED='\e[31m'
@@ -27,7 +24,7 @@ echo -e ${DEF}
 if [ "$DOMAIN" = "" ]; then
     echo "installing without certificates and proper TLS termination"
 else
-    curl -s https://netangels.net/utils/caddy.sh | bash -s -- $DOMAIN 3000 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 3000 false
 fi
 
 apt-get install -y postgresql-common git sudo curl ca-certificates uuid-runtime -y
@@ -80,4 +77,4 @@ pm2 start pnpm --name umami -- start
 pm2 startup
 pm2 save
 
-rm -f /etc/profile.d/umami.sh
+rm -f /etc/profile.d/install.sh

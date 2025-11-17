@@ -34,7 +34,7 @@ EOF
 
 # ./meilisearch superuser upsert  $USER $PASS
 
-cat > /etc/systemd/system/meilisearch.service <<- EOF
+cat > /etc/systemd/system/aralez.service <<- EOF
 [Unit]
 Description=meilisearch
 Documentation=https://github.com/meilisearch/meilisearch
