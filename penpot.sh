@@ -69,3 +69,5 @@ echo -e ${GRN}
 echo Congratulation the installation completed successsfully
 echo Open : https://${DOMAIN} in your browser and login withusername: ${EMAIL} and ${PASSWORD}
 echo -e ${DEF}
+
+rm -f /etc/profile.d/install.sh

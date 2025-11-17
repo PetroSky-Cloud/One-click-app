@@ -26,10 +26,10 @@ echo -e ${DEF}
 if [ "$DOMAIN" = "" ]; then
     echo "installing without certificates and proper TLS termination"
 else
-    curl -s https://netangels.net/utils/caddy.sh | bash -s -- $DOMAIN 11000 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 11000 false
 fi
 
-curl -s https://netangels.net/utils/docker.sh | bash
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
 
 mkdir -p /etc/systemd/system/docker.service.d/
 cat > /etc/systemd/system/docker.service.d/override.conf <<-EOF
@@ -54,4 +54,4 @@ sudo docker run -d \
     --volume /var/run/docker.sock:/var/run/docker.sock:ro \
 ghcr.io/nextcloud-releases/all-in-one:latest
 
-rm /etc/profile.d/nextcloud.sh
+rm /etc/profile.d/install.sh
