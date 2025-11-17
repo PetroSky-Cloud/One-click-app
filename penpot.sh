@@ -33,10 +33,10 @@ echo -e ${DEF}
 if [ "$DOMAIN" = "" ]; then
     echo "installing without certificates and proper TLS termination"
 else
-    curl -s https://netangels.net/utils/caddy.sh | bash -s -- $DOMAIN 9001 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 9001 false
 fi
 
-curl -s https://netangels.net/utils/docker.sh | bash
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
 
 mkdir /opt/penpot
 cd /opt/penpot

@@ -50,7 +50,7 @@ while : ; do
     fi
 done
 
-curl -s https://netangels.net/utils/docker.sh | bash
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
 
 cd /opt
 git clone -b v3.0.1 --single-branch https://github.com/plausible/community-edition plausible-ce
@@ -85,4 +85,4 @@ echo Congratulation the installation completed successsfully
 echo Open : https://${DOMAIN} in your browser
 echo -e ${DEF}
 
-rm -f /etc/profile.d/plausible.sh
+rm -f /etc/profile.d/install.sh

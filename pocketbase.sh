@@ -96,4 +96,4 @@ echo Open your dashboerd at: https://${DOMAIN}/_/ in your browser
 echo API is available at: https://${DOMAIN}/api/ in your browser
 echo -e ${DEF}
 
-rm -f /etc/profile.d/pocketbase.sh
+rm -f /etc/profile.d/install.sh
