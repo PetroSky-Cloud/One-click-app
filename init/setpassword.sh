@@ -1,5 +1,3 @@
-#!/bin/bash
-
 SERVICE_PASSWORD="{$service.password}"
 SERVICE_DOMAIN="{$service.domain}"
 CONFIG_PASSWORD="{$config.password}"
@@ -37,3 +35,4 @@ if [ -n "$CONFIG_USER" ] && [ "$CONFIG_USER" != "{config.ciuser}" ] && [ "$CONFI
         echo "[$(date)] Created user: $CONFIG_USER"
     fi
 fi
+{/literal}
