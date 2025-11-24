@@ -37,7 +37,7 @@ curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/head
 mkdir /opt/jitsi
 cd /opt/jitsi
 
-wget  -O jistsi.zip $(wget -q -O - https://api.github.com/repos/jitsi/docker-jitsi-meet/releases/latest | grep zip | cut -d\" -f4)
+wget -q -O jistsi.zip $(wget -q -O - https://api.github.com/repos/jitsi/docker-jitsi-meet/releases/latest | grep zip | cut -d\" -f4)
 unzip -q jistsi.zip
 cd jitsi-docker-jitsi-meet*
 cp env.example .env
