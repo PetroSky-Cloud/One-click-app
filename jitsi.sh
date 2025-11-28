@@ -1,17 +1,17 @@
 #!/bin/bash
 
-echo -e "${BLU} Please wait preparing the initial setup ${DEF}"
-
-apt-get update > /dev/null  2>&1
-apt-get -qqq -y install curl uuid-runtime net-tools unzip > /dev/null  2>&1
-
-clear
-
 RED='\e[31m'
 BLU='\e[34m'
 GRN='\e[32m'
 YEL='\033[0;33m'
 DEF='\e[0m'
+
+echo -e "${BLU} Please wait preparing the initial setup ${DEF}"
+
+apt update > /dev/null  2>&1
+apt -qqq -y install curl uuid-runtime net-tools unzip > /dev/null  2>&1
+
+clear
 
 echo
 echo
@@ -40,7 +40,22 @@ cd /opt/jitsi
 wget -q -O jistsi.zip $(wget -q -O - https://api.github.com/repos/jitsi/docker-jitsi-meet/releases/latest | grep zip | cut -d\" -f4)
 unzip -q jistsi.zip
 cd jitsi-docker-jitsi-meet*
-cp env.example .env
+
+cat > .env <<- EOF
+CONFIG=~/.jitsi-meet-cfg
+HTTP_PORT=8000
+HTTPS_PORT=8443
+PUBLIC_URL=https://${DOMAIN}:443
+JIBRI_RECORDER_PASSWORD=
+JIBRI_XMPP_PASSWORD=
+JICOFO_AUTH_PASSWORD=
+JIGASI_TRANSCRIBER_PASSWORD=
+JIGASI_XMPP_PASSWORD=
+JVB_AUTH_PASSWORD=
+TZ=UTC
+ENABLE_XMPP_WEBSOCKET=1
+EOF
+
 ./gen-passwords.sh
 mkdir -p ~/.jitsi-meet-cfg/{web,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
 

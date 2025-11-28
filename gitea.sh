@@ -171,10 +171,10 @@ systemctl  enable gitea.service
 systemctl  restart gitea.service
 
 sleep 2
+echo -e ${YEL} "Migrating database"
+sudo -u gitea ./gitea  migrate  > /dev/null  2>&1
+sleep 2
 
-sudo -u gitea ./gitea  migrate
-sleep 5
-echo -e ${YEL}
 sudo -u gitea ./gitea admin user create --name "${ADMIN_FULLNAME}" --username ${ADMIN_USERNAME} --password ${ADMIN_PASSWORD} --email ${ADMIN_EMAIL} --admin
 echo -e ${DEF}
 
