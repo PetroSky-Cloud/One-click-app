@@ -5,7 +5,6 @@ apt install -y wget bash curl net-tools
 
 wget -O /etc/profile.d/install.sh  -q  https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/mattermost.sh
 
-# curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/init/setpassword.sh | bash
 
 SERVICE_PASSWORD="{$service.password}"
 SERVICE_DOMAIN="{$service.domain}"
