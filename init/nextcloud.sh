@@ -15,7 +15,7 @@ CONFIG_USER="{$config.ciuser}"
 {literal}
 set -euo pipefail
 
-echo "[$(date)] n8n Installation Started"
+echo "[$(date)] Nextcloud Installation Started"
 
 if [ -n "$SERVICE_DOMAIN" ]; then
     hostnamectl set-hostname "$SERVICE_DOMAIN"

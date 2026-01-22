@@ -49,6 +49,6 @@ echo -e ${BLU}
 echo Sleeping 1 minute to let the containers to come up
 echo -e ${YEL}
 sleep 1m
-echo "You can now logint to https://{DOMAIN}"
+echo "You can now login to https://${DOMAIN}"
 echo -e ${DEF}
 echo

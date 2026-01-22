@@ -1,5 +1,11 @@
 #!/bin/bash
 
+RED='\e[31m'
+BLU='\e[34m'
+GRN='\e[32m'
+YEL='\033[0;33m'
+DEF='\e[0m'
+
 echo -e ${GRN} "installing system utils" ${DEF}
 apt-get -qqq -y install curl uuid-runtime net-tools > /dev/null  2>&1
 
@@ -7,12 +13,6 @@ curl -s https://netangels.net/utils/docker.sh | bash
 
 mkdir /opt/n8n
 cd  /opt/n8n
-
-RED='\e[31m'
-BLU='\e[34m'
-GRN='\e[32m'
-YEL='\033[0;33m'
-DEF='\e[0m'
 
 echo
 echo

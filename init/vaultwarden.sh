@@ -14,7 +14,7 @@ CONFIG_USER="{$config.ciuser}"
 {literal}
 set -euo pipefail
 
-echo "[$(date)] n8n Installation Started"
+echo "[$(date)] Vaultwarden Installation Started"
 
 if [ -n "$SERVICE_DOMAIN" ]; then
     hostnamectl set-hostname "$SERVICE_DOMAIN"
