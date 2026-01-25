@@ -44,6 +44,7 @@ curl -sL https://github.com/immich-app/immich/releases/latest/download/hwaccel.m
 echo -e ${BLU} "Creating environment file..." ${DEF}
 cat > /opt/immich/.env << EOFENV
 UPLOAD_LOCATION=/opt/immich/library
+DB_DATA_LOCATION=/opt/immich/postgres
 IMMICH_VERSION=release
 DB_PASSWORD=${DB_PASSWORD}
 
@@ -52,6 +53,8 @@ DB_USERNAME=postgres
 DB_DATABASE_NAME=immich
 REDIS_HOSTNAME=immich_redis
 EOFENV
+
+mkdir -p /opt/immich/postgres
 
 if [ "$DOMAIN" = "" ]; then
     echo -e ${GRN} "Installing without TLS - exposing port 2283 directly" ${DEF}
