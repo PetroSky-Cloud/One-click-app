@@ -2,7 +2,7 @@ One-Click App Scripts
 =====================
 
 Self-hosted app installers for VPS deployment.
-Target: Ubuntu 24.04 LTS, Proxmox 8.4, WHMCS 8.13.1
+Target: Ubuntu 24.04 LTS
 
 FOLDER STRUCTURE
 ----------------
