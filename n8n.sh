@@ -6,29 +6,34 @@ GRN='\e[32m'
 YEL='\033[0;33m'
 DEF='\e[0m'
 
-echo -e ${GRN} "installing system utils" ${DEF}
-apt-get -qqq -y install curl uuid-runtime net-tools > /dev/null  2>&1
-
-curl -s https://netangels.net/utils/docker.sh | bash
-
-mkdir /opt/n8n
-cd  /opt/n8n
+echo -e ${GRN} "Installing system utils" ${DEF}
+apt-get update -qq
+apt-get -qqq -y install curl uuid-runtime net-tools > /dev/null 2>&1
 
 echo
 echo
 echo -e ${GRN} "# ------------------------------------------------------------- #"
-echo -e ${GRN} "# ${BLU}WELCOME TO OUR INSTALL SCRIPT, PLEASE ANSWER TO FEW QUESTIONS ${GRN}#"
-echo -e ${GRN}  "# ------------------------------------------------------------- #"
+echo -e ${GRN} "# ${BLU}WELCOME TO N8N INSTALL SCRIPT                                ${GRN}#"
+echo -e ${GRN} "# ------------------------------------------------------------- #"
 echo
 echo -e ${YEL}
 
 printf "%s" "Please enter Domain Name, or hit enter for insecure installation: "
 read DOMAIN
 
+echo -e ${DEF}
+
+echo -e ${BLU} "Installing Docker..." ${DEF}
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
+
+mkdir -p /opt/n8n
+cd /opt/n8n
+
 if [ "$DOMAIN" = "" ]; then
-    echo -e ${GRN} "installing without certificates and proper TLS termination" ${DEF}
+    echo -e ${GRN} "Installing without TLS - exposing port 5678 directly" ${DEF}
 else
-    curl -s https://netangels.net/utils/caddy.sh | bash -s -- $DOMAIN 5678 false
+    echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 5678 false
 fi
 
 export POSTGRES_USER=n8nadmin
@@ -115,11 +120,52 @@ chmod 755 init-data.sh
 
 docker compose up -d
 
+sleep 10
+
+MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+
+if [ -n "$DOMAIN" ]; then
+    ACCESS_URL="https://${DOMAIN}"
+else
+    ACCESS_URL="http://${MYIP}:5678"
+fi
+
 echo
+echo -e "${GRN}========================================================================${DEF}"
+echo -e "${GRN}                   N8N INSTALLATION COMPLETE                            ${DEF}"
+echo -e "${GRN}========================================================================${DEF}"
 echo
-echo -e ${GRN} "Congratulations n8n ins succesfully installed !"
-echo -e ${GRN} "Visit https://${DOMAIN}" ${DEF}
+echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
+echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo
+echo -e "${GRN}========================================================================${DEF}"
+echo
+
+cat > /root/README.txt << EOF
+n8n - Workflow Automation
+=========================
+
+Access: ${ACCESS_URL}
+
+First-time setup:
+  1. Open the URL above
+  2. Create your admin account
+  3. Start building workflows
+
+Manage n8n:
+  cd /opt/n8n
+  docker compose ps              # Check status
+  docker compose logs -f         # View logs
+  docker compose restart         # Restart
+  docker compose pull && docker compose up -d  # Update
+
+Documentation: https://docs.n8n.io
+
+Installed: $(date)
+EOF
+
+echo -e "${BLU}README: /root/README.txt${DEF}"
 echo
 
 rm -f /etc/profile.d/install.sh
