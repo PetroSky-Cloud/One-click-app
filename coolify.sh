@@ -7,7 +7,7 @@ YEL='\033[0;33m'
 DEF='\e[0m'
 
 echo -e ${GRN} "Installing system utils" ${DEF}
-apt-get -qqq -y install curl uuid-runtime net-tools > /dev/null 2>&1
+apt-get -qqq -y install curl net-tools > /dev/null 2>&1
 
 echo
 echo
@@ -20,13 +20,6 @@ echo -e ${YEL}
 printf "%s" "Please enter Domain Name, or hit enter for insecure installation: "
 read DOMAIN
 
-printf "%s" "Please enter Admin Email: "
-read ADMIN_EMAIL
-
-printf "%s" "Please enter Admin Password (or hit enter to generate one): "
-read -s ADMIN_PASSWORD
-echo
-
 echo -e ${DEF}
 
 if [ "$DOMAIN" = "" ]; then
@@ -35,25 +28,7 @@ else
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 8000 false
 fi
 
-if [ -z "$ADMIN_EMAIL" ]; then
-    ADMIN_EMAIL="admin@localhost"
-fi
-
-if [ -z "$ADMIN_PASSWORD" ]; then
-    ADMIN_PASSWORD=$(openssl rand -base64 16 | tr -d '/+=' | head -c 16)
-    echo -e ${YEL} "Generated admin password: ${ADMIN_PASSWORD}" ${DEF}
-fi
-
-ADMIN_USERNAME=$(echo "$ADMIN_EMAIL" | cut -d'@' -f1 | tr -cd '[:alnum:]' | head -c 20)
-if [ -z "$ADMIN_USERNAME" ]; then
-    ADMIN_USERNAME="admin"
-fi
-
 echo -e ${BLU} "Running official Coolify installer (this may take several minutes)..." ${DEF}
-
-export ROOT_USERNAME="$ADMIN_USERNAME"
-export ROOT_USER_EMAIL="$ADMIN_EMAIL"
-export ROOT_USER_PASSWORD="$ADMIN_PASSWORD"
 
 curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
 
@@ -73,11 +48,12 @@ echo -e "${GRN}                     COOLIFY INSTALLATION COMPLETE               
 echo -e "${GRN}========================================================================${DEF}"
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
-echo -e "${YEL}  ADMIN EMAIL: ${GRN}${ADMIN_EMAIL}${DEF}"
+echo
+echo -e "${YEL}  Register your admin account at the URL above.${DEF}"
 echo
 if [ -n "$DOMAIN" ]; then
-    echo -e "${BLU}  TIP: You can now close ports 8000, 6001, 6002 from external access.${DEF}"
-    echo -e "${BLU}       Access via domain uses Caddy (port 443) only.${DEF}"
+    echo -e "${BLU}  TIP: After registering, you can close ports 8000, 6001, 6002${DEF}"
+    echo -e "${BLU}       from external access. Domain uses Caddy (port 443) only.${DEF}"
     echo
 fi
 echo -e "${GRN}========================================================================${DEF}"
@@ -89,9 +65,9 @@ Coolify PaaS
 
 Access Coolify: ${ACCESS_URL}
 
-Admin Credentials:
-  Email: ${ADMIN_EMAIL}
-  Password: (provided during installation)
+First-time setup:
+  1. Open the URL above
+  2. Register your admin account (first user becomes admin)
 
 Manage Coolify:
   cd /data/coolify/source
@@ -125,24 +101,7 @@ Documentation: https://coolify.io/docs
 Installed: $(date)
 EOF
 
-cat > /root/coolify-credentials.txt << EOF
-Coolify Installation Credentials
-================================
-
-Access URL: ${ACCESS_URL}
-
-Admin Credentials:
-  Username: ${ADMIN_USERNAME}
-  Email: ${ADMIN_EMAIL}
-  Password: ${ADMIN_PASSWORD}
-
-Installation Date: $(date)
-EOF
-
-chmod 600 /root/coolify-credentials.txt
-
-echo -e "${BLU}Credentials: /root/coolify-credentials.txt${DEF}"
-echo -e "${BLU}README:      /root/README.txt${DEF}"
+echo -e "${BLU}README: /root/README.txt${DEF}"
 echo
 
 rm -f /etc/profile.d/install.sh

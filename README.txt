@@ -7,7 +7,7 @@ Target: Ubuntu 24.04 LTS
 FOLDER STRUCTURE
 ----------------
 /*.sh        Interactive scripts (user runs after SSH, prompts for domain/email)
-/init/       Cloud-init bootstrap (two-stage install)
+/init/       Cloud-init bootstrap (WHMCS Smarty templates, two-stage install)
 
 UTILITIES
 ---------
