@@ -3,7 +3,14 @@
 echo -e "${BLU} Please wait preparing the initial setup ${DEF}"
 
 apt-get update > /dev/null  2>&1
-apt-get -qqq -y install curl uuid-runtime net-tools unzip > /dev/null  2>&1
+apt-get -qqq -y install curl uuid-runtime net-tools unzip bind9-host > /dev/null  2>&1
+
+MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
+
+validate_domain() {
+    local domain=$1
+    host "$domain" 2>/dev/null | grep -q "has address"
+}
 
 clear
 

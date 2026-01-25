@@ -3,6 +3,13 @@
 apt-get update
 apt-get -qqq -y install curl uuid-runtime net-tools
 
+MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
+
+validate_domain() {
+    local domain=$1
+    host "$domain" 2>/dev/null | grep -q "has address"
+}
+
 clear
 
 RED='\e[31m'

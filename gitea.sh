@@ -51,7 +51,14 @@ chmod 755 gitea
 chown -R gitea:gitea /opt/gitea
 
 echo -e ${BLU} "Installing MariaDB Server, may take some time" ${DEF}
-apt-get -y install mariadb-server uuid-runtime git rsyslog ccze net-tools  > /dev/null  2>&1
+apt-get -y install mariadb-server uuid-runtime git rsyslog ccze net-tools  bind9-host > /dev/null  2>&1
+
+MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
+
+validate_domain() {
+    local domain=$1
+    host "$domain" 2>/dev/null | grep -q "has address"
+}
 
 cat > /opt/gitea/custom/conf/app.ini <<-EOF
 APP_NAME = Gitea: Go Git Service

@@ -17,41 +17,7 @@ DOMAIN=$1
 PORT=$2
 SECURE=$3
 
-MYIP=`curl -s https://ipv4.icanhazip.com`
-
-apt-get update > /dev/null  2>&1
-apt-get install bind9-host -y > /dev/null  2>&1
-
-
-MAX_WAIT=120
-WAITED=0
-
-echo -e ${BLU} "Checking DNS for $DOMAIN..." ${DEF}
-
-while [ $WAITED -lt $MAX_WAIT ]; do
-    RESOLVED=$(host $DOMAIN 2>/dev/null | grep "has address" | head -1)
-
-    if [ -n "$RESOLVED" ]; then
-        RESOLVED_IP=$(echo "$RESOLVED" | awk '{print $NF}')
-
-        if [ "$RESOLVED_IP" = "$MYIP" ]; then
-            echo -e ${GRN} "DNS verified: $DOMAIN -> $MYIP (direct)" ${DEF}
-        else
-            echo -e ${GRN} "DNS verified: $DOMAIN -> $RESOLVED_IP (CDN/proxy)" ${DEF}
-        fi
-        break
-    fi
-
-    echo -e ${BLU} "Waiting for DNS propagation... ${WAITED}s" ${DEF}
-    sleep 10
-    WAITED=$((WAITED + 10))
-done
-
-if [ $WAITED -ge $MAX_WAIT ]; then
-    echo -e ${YEL} "DNS check timed out after ${MAX_WAIT}s - proceeding anyway" ${DEF}
-fi
-
-echo -e ${BLU}"Downloading and installing Caddy Server (latest version)" ${DEF}
+echo -e ${BLU} "Downloading and installing Caddy Server (latest version)" ${DEF}
 mkdir /opt/caddy
 cd  /opt/caddy
 CADDY_VERSION=$(curl -s https://api.github.com/repos/caddyserver/caddy/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
