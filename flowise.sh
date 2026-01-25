@@ -52,7 +52,10 @@ services:
       - PASSPHRASE=${PASSPHRASE}
       - DEBUG=false
       - LOG_LEVEL=info
-    command: /bin/sh -c "sleep 3; flowise start"
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - sleep 3 && flowise start
 
 volumes:
   flowise-data:
