@@ -24,7 +24,7 @@ read DOMAIN
 echo -e ${DEF}
 
 echo -e ${BLU} "Installing Docker..." ${DEF}
-curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
 echo -e ${BLU} "Creating Beszel directories..." ${DEF}
 mkdir -p /opt/beszel
@@ -58,7 +58,7 @@ if [ "$DOMAIN" = "" ]; then
     sed -i "s/127.0.0.1:8090:8090/8090:8090/" /opt/beszel/docker-compose.yml
 else
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 8090 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8090 false
 fi
 
 echo -e ${BLU} "Starting Beszel Hub..." ${DEF}

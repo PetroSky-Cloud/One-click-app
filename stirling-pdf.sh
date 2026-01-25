@@ -23,7 +23,7 @@ read DOMAIN
 echo -e ${DEF}
 
 echo -e ${BLU} "Installing Docker..." ${DEF}
-curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
 echo -e ${BLU} "Creating Stirling-PDF directories..." ${DEF}
 mkdir -p /opt/stirling-pdf/{configs,logs,pipeline}
@@ -52,7 +52,7 @@ if [ "$DOMAIN" = "" ]; then
     sed -i "s/127.0.0.1:8080:8080/8080:8080/" /opt/stirling-pdf/docker-compose.yml
 else
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 8080 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8080 false
 fi
 
 echo -e ${BLU} "Starting Stirling-PDF..." ${DEF}

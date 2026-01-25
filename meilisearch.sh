@@ -8,7 +8,7 @@ useradd -r -s /bin/false -d /opt/meilisearch  meilisearch
 mkdir -p /opt/meilisearch/{data,dumps,snapshots}
 cd /opt/meilisearch
 
-curl -s https://raw.githubusercontent.com/meilisearch/meilisearch/refs/heads/main/download-latest.sh | bash > /dev/null  2>&1
+curl -s https://raw.githubusercontent.com/meilisearch/meilisearch/main/download-latest.sh | bash > /dev/null  2>&1
 chown -R meilisearch:meilisearch /opt/meilisearch
 
 cat > config.toml <<-EOF

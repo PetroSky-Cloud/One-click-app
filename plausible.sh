@@ -50,7 +50,7 @@ while : ; do
     fi
 done
 
-curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
 cd /opt
 git clone -b v3.0.1 --single-branch https://github.com/plausible/community-edition plausible-ce

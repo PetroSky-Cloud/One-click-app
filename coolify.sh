@@ -25,7 +25,7 @@ echo -e ${DEF}
 if [ "$DOMAIN" = "" ]; then
     echo -e ${GRN} "Installing without certificates and proper TLS termination" ${DEF}
 else
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 8000 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8000 false
 fi
 
 echo -e ${BLU} "Running official Coolify installer (this may take several minutes)..." ${DEF}

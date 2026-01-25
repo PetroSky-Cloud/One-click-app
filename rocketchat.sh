@@ -33,10 +33,10 @@ echo -e ${DEF}
 if [ "$DOMAIN" = "" ]; then
     echo "installing without certificates and proper TLS termination"
 else
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 8000 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8000 false
 fi
 
-curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/docker.sh | bash
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
 cd /opt
 git clone --depth 1 https://github.com/RocketChat/rocketchat-compose.git

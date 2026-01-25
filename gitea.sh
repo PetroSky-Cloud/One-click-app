@@ -33,7 +33,7 @@ read ADMIN_EMAIL
 if [ "$DOMAIN" = "" ]; then
     echo "installing without certificates and proper TLS termination"
 else
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 3003 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 3003 false
 fi
 
 MYPASSWD=`uuidgen`

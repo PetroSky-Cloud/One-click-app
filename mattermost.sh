@@ -24,7 +24,7 @@ echo -e ${DEF}
 if [ "$DOMAIN" = "" ]; then
     echo "installing without certificates and proper TLS termination"
 else
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/refs/heads/main/caddy.sh | bash -s -- $DOMAIN 8065 false
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8065 false
 fi
 
 apt install -y postgresql-common git sudo curl ca-certificates uuid-runtime moreutils jq -y
