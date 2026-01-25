@@ -47,11 +47,12 @@ while : ; do
     fi
 done
 
-echo -e ${BLU}"Downloading and installing Caddy Server" ${DEF}
+echo -e ${BLU}"Downloading and installing Caddy Server (latest version)" ${DEF}
 mkdir /opt/caddy
 cd  /opt/caddy
-wget -q  https://github.com/caddyserver/caddy/releases/download/v2.10.2/caddy_2.10.2_linux_amd64.tar.gz
-tar -zxf caddy_2.10.2_linux_amd64.tar.gz
+CADDY_VERSION=$(curl -s https://api.github.com/repos/caddyserver/caddy/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+wget -q https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz
+tar -zxf caddy_${CADDY_VERSION}_linux_amd64.tar.gz
 
 
 if $SECURE ;

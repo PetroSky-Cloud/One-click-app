@@ -44,8 +44,9 @@ useradd -s /bin/false -d /dev/null -r gitea
 mkdir -p /opt/gitea/custom/conf/
 touch /opt/gitea/custom/conf/app.ini
 cd /opt/gitea
-echo -e ${BLU} "Downloading Gitea" ${DEF}
-wget -q  -O gitea  https://dl.gitea.com/gitea/1.25.1/gitea-1.25.1-linux-amd64
+echo -e ${BLU} "Downloading Gitea (latest version)" ${DEF}
+GITEA_VERSION=$(curl -s https://api.github.com/repos/go-gitea/gitea/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+wget -q -O gitea https://dl.gitea.com/gitea/${GITEA_VERSION}/gitea-${GITEA_VERSION}-linux-amd64
 chmod 755 gitea
 chown -R gitea:gitea /opt/gitea
 

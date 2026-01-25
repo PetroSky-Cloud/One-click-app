@@ -56,7 +56,8 @@ echo -e ${DEF}
 apt-get -y install unzip wget curl
 mkdir -p /opt/pocketbase
 cd /opt/pocketbase
-wget -qO pocketbase.zip https://github.com/pocketbase/pocketbase/releases/download/v0.31.0/pocketbase_0.31.0_linux_amd64.zip
+PB_VERSION=$(curl -s https://api.github.com/repos/pocketbase/pocketbase/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+wget -qO pocketbase.zip https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip
 unzip pocketbase.zip
 
 ./pocketbase superuser upsert  $USER $PASS

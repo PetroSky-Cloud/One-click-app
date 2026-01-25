@@ -54,10 +54,11 @@ sudo -u postgres psql -f /tmp/user.sql
 rm /tmp/user.sql
 
 cd /opt
-wget https://nodejs.org/dist/v24.11.0/node-v24.11.0-linux-x64.tar.xz
-tar -xvf node-v24.11.0-linux-x64.tar.xz
-rm node-v24.11.0-linux-x64.tar.xz
-ln -s node-v24.11.0-linux-x64 node
+NODE_VERSION=$(curl -s https://nodejs.org/dist/index.json | grep -o '"version":"v[0-9.]*"' | head -1 | grep -o 'v[0-9.]*')
+wget https://nodejs.org/dist/${NODE_VERSION}/node-${NODE_VERSION}-linux-x64.tar.xz
+tar -xvf node-${NODE_VERSION}-linux-x64.tar.xz
+rm node-${NODE_VERSION}-linux-x64.tar.xz
+ln -sf node-${NODE_VERSION}-linux-x64 node
 echo 'PATH=$PATH:/opt/node/bin/' >> /etc/profile
 PATH=$PATH:/opt/node/bin/
 npm install -g pnpm
