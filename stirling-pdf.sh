@@ -7,6 +7,7 @@ YEL='\033[0;33m'
 DEF='\e[0m'
 
 echo -e ${GRN} "Installing system utils" ${DEF}
+apt-get update -qq
 apt-get -qqq -y install curl net-tools > /dev/null 2>&1
 
 echo

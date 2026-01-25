@@ -1,5 +1,6 @@
 #!/bin/bash
 
+apt-get update -qq
 apt-get -qqq -y install curl uuid-runtime net-tools
 
 clear
