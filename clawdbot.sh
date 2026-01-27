@@ -53,6 +53,9 @@ apt-get install -y nodejs > /dev/null 2>&1
 NODE_VERSION=$(node --version)
 echo -e ${GRN} "Node.js ${NODE_VERSION} installed" ${DEF}
 
+echo -e ${BLU} "Installing pnpm..." ${DEF}
+npm install -g pnpm > /dev/null 2>&1
+
 echo -e ${BLU} "Adding swap space (2GB)..." ${DEF}
 if [ ! -f /swapfile ]; then
     fallocate -l 2G /swapfile
@@ -67,6 +70,10 @@ npm install -g clawdbot@latest 2>&1 | grep -E "added|packages"
 
 CLAWDBOT_VERSION=$(clawdbot --version 2>/dev/null)
 echo -e ${GRN} "Clawdbot ${CLAWDBOT_VERSION} installed" ${DEF}
+
+echo -e ${BLU} "Building Control UI assets..." ${DEF}
+cd /usr/lib/node_modules/clawdbot 2>/dev/null && pnpm ui:build > /dev/null 2>&1 || true
+cd /root
 
 echo -e ${BLU} "Creating clawdbot user..." ${DEF}
 useradd -m -s /bin/bash clawdbot 2>/dev/null || true
