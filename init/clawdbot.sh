@@ -1,7 +1,7 @@
 #!/bin/bash
 
 apt-get update
-apt-get install -y wget bash curl net-tools
+apt-get install -y wget bash curl net-tools ufw fail2ban
 
 wget -O /etc/profile.d/install.sh -q https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/clawdbot.sh
 chmod +x /etc/profile.d/install.sh
@@ -16,6 +16,35 @@ CONFIG_USER="{$config.ciuser}"
 set -euo pipefail
 
 echo "[$(date)] Clawdbot Installation Started"
+
+# Configure UFW firewall
+echo "[$(date)] Configuring firewall..."
+ufw default deny incoming > /dev/null 2>&1
+ufw default allow outgoing > /dev/null 2>&1
+ufw allow ssh > /dev/null 2>&1
+ufw --force enable > /dev/null 2>&1
+echo "[$(date)] UFW firewall enabled (SSH only)"
+
+# Configure fail2ban for SSH brute-force protection
+echo "[$(date)] Configuring fail2ban..."
+cat > /etc/fail2ban/jail.local << 'EOFFAIL2BAN'
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+banaction = ufw
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 24h
+EOFFAIL2BAN
+systemctl enable fail2ban > /dev/null 2>&1
+systemctl restart fail2ban > /dev/null 2>&1
+echo "[$(date)] Fail2ban configured (SSH protection)"
 
 if [ -n "$SERVICE_DOMAIN" ]; then
     hostnamectl set-hostname "$SERVICE_DOMAIN"
@@ -44,5 +73,7 @@ if [ -n "$CONFIG_USER" ] && [ "$CONFIG_USER" != "{config.ciuser}" ] && [ "$CONFI
         echo "[$(date)] Created user: $CONFIG_USER"
     fi
 fi
+
+echo "[$(date)] Security hardening complete"
 {/literal}
 
