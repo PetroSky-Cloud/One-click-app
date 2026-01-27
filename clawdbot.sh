@@ -19,6 +19,13 @@ echo -e ${GRN} "# ------------------------------------------------------------- 
 echo
 echo -e ${YEL}
 
+echo -e ${BLU} "Disabling IPv6..." ${DEF}
+cat >> /etc/sysctl.conf << 'EOFIPV6'
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+EOFIPV6
+sysctl -p > /dev/null 2>&1
+
 echo -e ${BLU} "Configuring firewall (UFW)..." ${DEF}
 ufw default deny incoming > /dev/null 2>&1
 ufw default allow outgoing > /dev/null 2>&1
