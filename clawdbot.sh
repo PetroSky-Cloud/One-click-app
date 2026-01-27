@@ -8,7 +8,7 @@ DEF='\e[0m'
 
 echo -e ${GRN} "Installing system dependencies" ${DEF}
 apt-get update -qq
-apt-get -qqq -y install curl wget gnupg ca-certificates net-tools > /dev/null 2>&1
+apt-get -qqq -y install curl wget gnupg ca-certificates net-tools ufw fail2ban > /dev/null 2>&1
 
 echo
 echo
@@ -18,6 +18,33 @@ echo -e ${GRN} "# ${YEL}Self-Hosted Personal AI Assistant                       
 echo -e ${GRN} "# ------------------------------------------------------------- #"
 echo
 echo -e ${YEL}
+
+echo -e ${BLU} "Configuring firewall (UFW)..." ${DEF}
+ufw default deny incoming > /dev/null 2>&1
+ufw default allow outgoing > /dev/null 2>&1
+ufw allow ssh > /dev/null 2>&1
+ufw --force enable > /dev/null 2>&1
+echo -e ${GRN} "Firewall enabled (SSH only)" ${DEF}
+
+echo -e ${BLU} "Configuring fail2ban..." ${DEF}
+cat > /etc/fail2ban/jail.local << 'EOFFAIL2BAN'
+[DEFAULT]
+bantime = 1h
+findtime = 10m
+maxretry = 5
+banaction = ufw
+
+[sshd]
+enabled = true
+port = ssh
+filter = sshd
+logpath = /var/log/auth.log
+maxretry = 3
+bantime = 24h
+EOFFAIL2BAN
+systemctl enable fail2ban > /dev/null 2>&1
+systemctl restart fail2ban > /dev/null 2>&1
+echo -e ${GRN} "Fail2ban configured (SSH protection)" ${DEF}
 
 echo -e ${BLU} "Installing Node.js 22..." ${DEF}
 curl -fsSL https://deb.nodesource.com/setup_22.x | bash - > /dev/null 2>&1
@@ -43,6 +70,12 @@ echo -e ${GRN} "Clawdbot ${CLAWDBOT_VERSION} installed" ${DEF}
 
 echo -e ${BLU} "Creating clawdbot user..." ${DEF}
 useradd -m -s /bin/bash clawdbot 2>/dev/null || true
+
+echo -e ${BLU} "Configuring npm for clawdbot user..." ${DEF}
+sudo -u clawdbot mkdir -p /home/clawdbot/.npm-global
+sudo -u clawdbot npm config set prefix '/home/clawdbot/.npm-global'
+echo 'export PATH=/home/clawdbot/.npm-global/bin:$PATH' >> /home/clawdbot/.bashrc
+echo 'export PATH=/home/clawdbot/.npm-global/bin:$PATH' >> /home/clawdbot/.profile
 
 echo -e ${BLU} "Setting up systemd service..." ${DEF}
 cat > /etc/systemd/system/clawdbot-gateway.service << 'EOFSERVICE'
@@ -75,7 +108,7 @@ echo
 echo -e "${YEL}  NEXT STEPS:${DEF}"
 echo
 echo -e "${BLU}  1. Run the onboarding wizard:${DEF}"
-echo -e "     sudo -u clawdbot clawdbot onboard"
+echo -e "     sudo -iu clawdbot clawdbot onboard"
 echo
 echo -e "${BLU}  2. Start the gateway service:${DEF}"
 echo -e "     systemctl enable --now clawdbot-gateway"
@@ -103,7 +136,7 @@ SETUP INSTRUCTIONS
 ==================
 
 1. Run the onboarding wizard (interactive):
-   sudo -u clawdbot clawdbot onboard
+   sudo -iu clawdbot clawdbot onboard
 
    This will:
    - Set up your AI provider (Anthropic Claude or OpenAI)
@@ -143,6 +176,14 @@ SECURITY
 - Gateway binds to localhost only (127.0.0.1:18789)
 - Access via SSH tunnel or Tailscale
 - Never expose port 18789 to the internet directly
+- UFW firewall enabled (SSH only, all other ports blocked)
+- Fail2ban active (blocks IPs after 3 failed SSH attempts for 24h)
+
+FIREWALL COMMANDS
+=================
+ufw status                    # Check firewall status
+fail2ban-client status sshd   # Check banned IPs
+fail2ban-client unban <IP>    # Unban an IP address
 
 MANAGEMENT COMMANDS
 ===================
