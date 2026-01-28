@@ -70,13 +70,16 @@ cp supabase/docker/.env.example supabase-project/.env
 cd supabase-project
 
 # Generate strong random credentials
-POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=')
-DASHBOARD_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=')
-JWT_SECRET=$(openssl rand -base64 48 | tr -d '/+=')
-ANON_KEY=$(openssl rand -base64 32 | tr -d '/+=')
-SERVICE_ROLE_KEY=$(openssl rand -base64 32 | tr -d '/+=')
+# POSTGRES_PASSWORD - any length is fine
+POSTGRES_PASSWORD=$(openssl rand -base64 32 | tr -d '/+=' | head -c 32)
+# DASHBOARD_PASSWORD - for web login
+DASHBOARD_PASSWORD=$(openssl rand -base64 24 | tr -d '/+=' | head -c 24)
+# JWT_SECRET - minimum 32 chars, we use 64
+JWT_SECRET=$(openssl rand -hex 32)
+# SECRET_KEY_BASE - for Rails encryption (128 hex chars)
 SECRET_KEY_BASE=$(openssl rand -hex 64)
-VAULT_ENC_KEY=$(openssl rand -base64 24 | tr -d '/+=')
+# VAULT_ENC_KEY - MUST be exactly 32 characters for AES-256
+VAULT_ENC_KEY=$(openssl rand -hex 16)
 
 # Update .env with secure credentials
 sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env
