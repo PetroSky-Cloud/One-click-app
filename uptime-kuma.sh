@@ -1,8 +1,14 @@
 #!/bin/bash
 
+RED='\e[31m'
+BLU='\e[34m'
+GRN='\e[32m'
+YEL='\033[0;33m'
+DEF='\e[0m'
 
-apt-get update
-apt-get install curl
+echo -e ${GRN} "Installing system utils" ${DEF}
+apt-get update -qq
+apt-get -qqq -y install curl net-tools bind9-host > /dev/null 2>&1
 
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
 
@@ -11,21 +17,14 @@ validate_domain() {
     host "$domain" 2>/dev/null | grep -q "has address"
 }
 
+echo -e ${BLU} "Installing Docker..." ${DEF}
 curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
-
-clear
-
-RED='\e[31m'
-BLU='\e[34m'
-GRN='\e[32m'
-YEL='\033[0;33m'
-DEF='\e[0m'
 
 echo
 echo
 echo -e ${GRN} "# ------------------------------------------------------------- #"
-echo -e ${GRN} "# ${BLU}WELCOME TO OUR INSTALL SCRIPT, PLEASE ANSWER TO FEW QUESTIONS ${GRN}#"
-echo -e ${GRN}  "# ------------------------------------------------------------- #"
+echo -e ${GRN} "# ${BLU}WELCOME TO UPTIME KUMA INSTALL SCRIPT                         ${GRN}#"
+echo -e ${GRN} "# ------------------------------------------------------------- #"
 echo
 echo -e ${YEL}
 
@@ -56,21 +55,81 @@ while true; do
     fi
 done
 
-if [ "$DOMAIN" = "" ]; then
-    echo "installing without certificates and proper TLS termination"
-else
+if [ -n "$DOMAIN" ]; then
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 3001 false
 fi
 
 cd /opt
-mkdir uptime-kuma
+mkdir -p uptime-kuma
 cd uptime-kuma
-curl -o compose.yaml https://raw.githubusercontent.com/louislam/uptime-kuma/master/compose.yaml
+curl -sO https://raw.githubusercontent.com/louislam/uptime-kuma/master/compose.yaml
 docker compose up -d
 
-echo -e ${GRN}
-echo Congratulation the installation completed successsfully
-echo Open : https://${DOMAIN} in your browser to setup Uptime Kuma
-echo -e ${DEF}
+sleep 15
+
+MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+
+if [ -n "$DOMAIN" ]; then
+    ACCESS_URL="https://${DOMAIN}"
+else
+    ACCESS_URL="http://${MYIP}:3001"
+fi
+
+echo
+echo -e "${GRN}========================================================================${DEF}"
+echo -e "${GRN}                 UPTIME KUMA INSTALLATION COMPLETE                      ${DEF}"
+echo -e "${GRN}========================================================================${DEF}"
+echo
+echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
+echo
+echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo
+echo -e "${GRN}========================================================================${DEF}"
+echo
+
+cat > /root/README.txt << EOF
+Uptime Kuma - Monitoring Tool
+=============================
+
+Access: ${ACCESS_URL}
+
+First-time setup:
+  1. Open the URL above
+  2. Create your admin account
+  3. Add monitors for your services
+
+Features:
+  - HTTP(s), TCP, DNS, Ping, and more
+  - Beautiful status pages
+  - Multiple notification channels
+  - Certificate expiry monitoring
+  - Maintenance windows
+  - Multi-language support
+
+Notification Options:
+  - Email, Slack, Discord, Telegram
+  - Webhooks, Pushover, Gotify
+  - 90+ notification services
+
+Manage Uptime Kuma:
+  cd /opt/uptime-kuma
+  docker compose ps              # Check status
+  docker compose logs -f         # View logs
+  docker compose restart         # Restart
+  docker compose pull && docker compose up -d  # Update
+
+Data Location:
+  Docker volume: uptime-kuma
+
+Backup:
+  docker run --rm -v uptime-kuma:/data -v \$(pwd):/backup alpine tar czf /backup/uptime-kuma-backup.tar.gz /data
+
+Documentation: https://github.com/louislam/uptime-kuma/wiki
+
+Installed: $(date)
+EOF
+
+echo -e "${BLU}README: /root/README.txt${DEF}"
+echo
 
 rm -f /etc/profile.d/install.sh

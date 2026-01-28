@@ -1,7 +1,14 @@
 #!/bin/bash
 
+RED='\e[31m'
+BLU='\e[34m'
+GRN='\e[32m'
+YEL='\033[0;33m'
+DEF='\e[0m'
+
+echo -e ${GRN} "Installing system utils" ${DEF}
 apt-get update -qq
-apt-get -qqq -y install curl uuid-runtime net-tools
+apt-get -qqq -y install curl uuid-runtime net-tools bind9-host > /dev/null 2>&1
 
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
 
@@ -9,14 +16,6 @@ validate_domain() {
     local domain=$1
     host "$domain" 2>/dev/null | grep -q "has address"
 }
-
-clear
-
-RED='\e[31m'
-BLU='\e[34m'
-GRN='\e[32m'
-YEL='\033[0;33m'
-DEF='\e[0m'
 
 echo
 echo
@@ -84,4 +83,77 @@ sudo docker run -d \
     --volume /var/run/docker.sock:/var/run/docker.sock:ro \
 ghcr.io/nextcloud-releases/all-in-one:latest
 
-rm /etc/profile.d/install.sh
+sleep 20
+
+MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+
+if [ -n "$DOMAIN" ]; then
+    ACCESS_URL="https://${DOMAIN}"
+    AIO_URL="https://${MYIP}:8080"
+else
+    ACCESS_URL="http://${MYIP}:11000"
+    AIO_URL="https://${MYIP}:8080"
+fi
+
+echo
+echo -e "${GRN}========================================================================${DEF}"
+echo -e "${GRN}                  NEXTCLOUD INSTALLATION COMPLETE                       ${DEF}"
+echo -e "${GRN}========================================================================${DEF}"
+echo
+echo -e "${YEL}  AIO ADMIN:   ${GRN}${AIO_URL}${DEF}"
+echo -e "${YEL}  NEXTCLOUD:   ${GRN}${ACCESS_URL}${DEF} (after AIO setup)"
+echo
+echo -e "${BLU}  1. Open the AIO admin URL above${DEF}"
+echo -e "${BLU}  2. Accept the self-signed certificate warning${DEF}"
+echo -e "${BLU}  3. Follow the setup wizard${DEF}"
+echo
+echo -e "${GRN}========================================================================${DEF}"
+echo
+
+cat > /root/README.txt << EOF
+Nextcloud All-in-One
+====================
+
+AIO Admin Panel: ${AIO_URL}
+  (Accept the self-signed certificate warning)
+
+After AIO Setup: ${ACCESS_URL}
+
+First-time setup:
+  1. Open the AIO Admin URL above
+  2. Accept the self-signed certificate warning
+  3. Copy the initial password shown
+  4. Follow the setup wizard to configure Nextcloud
+  5. Set your domain and start containers
+
+Features:
+  - File sync and sharing
+  - Office document editing (Collabora/OnlyOffice)
+  - Calendar and contacts
+  - Talk (video calls)
+  - Photos with AI recognition
+  - Automatic backups
+
+Manage Nextcloud AIO:
+  Access the AIO admin panel to:
+  - Start/stop/update containers
+  - Configure optional features
+  - Create backups
+  - View logs
+
+Docker Management:
+  docker ps                      # Check containers
+  docker logs nextcloud-aio-mastercontainer -f  # AIO logs
+
+Data Location:
+  Docker volumes (managed by AIO)
+
+Documentation: https://github.com/nextcloud/all-in-one
+
+Installed: $(date)
+EOF
+
+echo -e "${BLU}README: /root/README.txt${DEF}"
+echo
+
+rm -f /etc/profile.d/install.sh

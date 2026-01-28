@@ -6,29 +6,34 @@ GRN='\e[32m'
 YEL='\033[0;33m'
 DEF='\e[0m'
 
-echo -e "${BLU} Please wait preparing the initial setup ${DEF}"
+echo -e ${GRN} "Installing system utils" ${DEF}
+apt-get update -qq
+apt-get -qqq -y install curl uuid-runtime net-tools unzip bind9-host > /dev/null 2>&1
 
-apt update > /dev/null  2>&1
-apt -qqq -y install curl uuid-runtime net-tools unzip > /dev/null  2>&1
+MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
 
-clear
+validate_domain() {
+    local domain=$1
+    host "$domain" 2>/dev/null | grep -q "has address"
+}
 
 echo
 echo
 echo -e ${GRN} "# ------------------------------------------------------------- #"
-echo -e ${GRN} "# ${BLU}WELCOME TO OUR INSTALL SCRIPT, PLEASE ANSWER TO FEW QUESTIONS ${GRN}#"
-echo -e ${GRN}  "# ------------------------------------------------------------- #"
+echo -e ${GRN} "# ${BLU}WELCOME TO JITSI MEET INSTALL SCRIPT                          ${GRN}#"
+echo -e ${GRN} "# ------------------------------------------------------------- #"
 echo
 echo -e ${YEL}
 
 while true; do
     echo
-    printf "${YEL}Please enter Domain Name, or hit enter for insecure installation: ${DEF}"
+    printf "${YEL}Please enter Domain Name (REQUIRED for Jitsi): ${DEF}"
     read DOMAIN
 
     if [ -z "$DOMAIN" ]; then
-        echo -e "${GRN}Proceeding without TLS (HTTP only)${DEF}"
-        break
+        echo -e "${RED}Jitsi Meet requires a domain for WebRTC to work properly.${DEF}"
+        echo -e "${YEL}Please enter a domain or press Ctrl+C to cancel.${DEF}"
+        continue
     fi
 
     echo -e "${BLU}Checking DNS for ${DOMAIN}...${DEF}"
@@ -44,23 +49,21 @@ while true; do
     else
         echo -e "${RED}ERROR: Domain '${DOMAIN}' does not resolve to any IP address.${DEF}"
         echo -e "${YEL}Please ensure DNS is configured correctly, then try again.${DEF}"
-        echo -e "${YEL}Or press Enter to skip TLS and use HTTP only.${DEF}"
     fi
 done
 
-if [ "$DOMAIN" = "" ]; then
-    echo "installing without certificates and proper TLS termination"
-else
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8443 true
-fi
+echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
+curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8443 true
 
+echo -e ${BLU} "Installing Docker..." ${DEF}
 curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
-mkdir /opt/jitsi
+mkdir -p /opt/jitsi
 cd /opt/jitsi
 
-wget -q -O jistsi.zip $(wget -q -O - https://api.github.com/repos/jitsi/docker-jitsi-meet/releases/latest | grep zip | cut -d\" -f4)
-unzip -q jistsi.zip
+echo -e ${BLU} "Downloading Jitsi Docker Compose..." ${DEF}
+wget -q -O jitsi.zip $(wget -q -O - https://api.github.com/repos/jitsi/docker-jitsi-meet/releases/latest | grep zip | cut -d\" -f4)
+unzip -q jitsi.zip
 cd jitsi-docker-jitsi-meet*
 
 cat > .env <<- EOF
@@ -78,18 +81,78 @@ TZ=UTC
 ENABLE_XMPP_WEBSOCKET=1
 EOF
 
+echo -e ${BLU} "Generating passwords..." ${DEF}
 ./gen-passwords.sh
 mkdir -p ~/.jitsi-meet-cfg/{web,transcripts,prosody/config,prosody/prosody-plugins-custom,jicofo,jvb,jigasi,jibri}
 
+echo -e ${BLU} "Starting Jitsi Meet..." ${DEF}
 docker compose -f docker-compose.yml -f jigasi.yml up -d
 
 echo
-echo -e ${BLU}
-echo Sleeping 1 minute to let the containers to come up
-echo -e ${YEL}
-sleep 1m
-echo "You can now logint to https://${DOMAIN}"
-echo -e ${DEF}
+echo -e ${BLU} "Waiting for containers to start..." ${DEF}
+sleep 60
+
+ACCESS_URL="https://${DOMAIN}"
+
+echo
+echo -e "${GRN}========================================================================${DEF}"
+echo -e "${GRN}                  JITSI MEET INSTALLATION COMPLETE                      ${DEF}"
+echo -e "${GRN}========================================================================${DEF}"
+echo
+echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
+echo
+echo -e "${BLU}  Start a meeting by visiting the URL above.${DEF}"
+echo -e "${BLU}  No account required - just enter a room name!${DEF}"
+echo
+echo -e "${GRN}========================================================================${DEF}"
 echo
 
-rm /etc/profile.d/install.sh
+cat > /root/README.txt << EOF
+Jitsi Meet - Video Conferencing
+================================
+
+Access: ${ACCESS_URL}
+
+Usage:
+  1. Open the URL above
+  2. Enter a room name (or generate one)
+  3. Share the room link with participants
+  4. No account required!
+
+Features:
+  - HD video and audio
+  - Screen sharing
+  - Chat messaging
+  - Recording (requires Jibri)
+  - Live streaming
+  - Password protection for rooms
+  - Lobby/waiting room
+  - Raise hand feature
+
+Mobile Apps:
+  - iOS: Jitsi Meet on App Store
+  - Android: Jitsi Meet on Play Store
+
+Configuration:
+  /opt/jitsi/jitsi-docker-jitsi-meet*/.env
+
+Manage Jitsi:
+  cd /opt/jitsi/jitsi-docker-jitsi-meet*
+  docker compose ps                    # Check status
+  docker compose logs -f               # View logs
+  docker compose restart               # Restart
+  docker compose pull && docker compose up -d  # Update
+
+Enable Recording (Jibri):
+  Edit .env and configure JIBRI settings
+  Then: docker compose -f docker-compose.yml -f jibri.yml up -d
+
+Documentation: https://jitsi.github.io/handbook/
+
+Installed: $(date)
+EOF
+
+echo -e "${BLU}README: /root/README.txt${DEF}"
+echo
+
+rm -f /etc/profile.d/install.sh

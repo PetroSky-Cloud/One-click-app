@@ -75,8 +75,11 @@ scrape_configs:
       - targets: ['node-exporter:9100']
 EOFPROM
 
+echo -e ${BLU} "Generating Grafana password..." ${DEF}
+GRAFANA_PASSWORD=$(openssl rand -base64 16 | tr -d '/+=')
+
 echo -e ${BLU} "Creating Docker Compose file..." ${DEF}
-cat > /opt/monitoring/docker-compose.yml << 'EOFCOMPOSE'
+cat > /opt/monitoring/docker-compose.yml << EOFCOMPOSE
 services:
   prometheus:
     image: prom/prometheus:latest
@@ -98,7 +101,7 @@ services:
     ports:
       - '127.0.0.1:3000:3000'
     environment:
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD}
       - GF_USERS_ALLOW_SIGN_UP=false
     volumes:
       - grafana-data:/var/lib/grafana
@@ -153,7 +156,10 @@ echo
 echo -e "${YEL}  GRAFANA URL:     ${GRN}${GRAFANA_URL}${DEF}"
 echo -e "${YEL}  PROMETHEUS URL:  ${GRN}${PROMETHEUS_URL}${DEF}"
 echo
-echo -e "${BLU}  Grafana Login: admin / admin (change on first login)${DEF}"
+echo -e "${BLU}  Grafana Login:${DEF}"
+echo -e "${YEL}    Username: ${GRN}admin${DEF}"
+echo -e "${YEL}    Password: ${GRN}${GRAFANA_PASSWORD}${DEF}"
+echo
 echo -e "${BLU}  Add Prometheus as data source: http://prometheus:9090${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -166,9 +172,9 @@ Grafana + Prometheus Monitoring Stack
 Grafana:    ${GRAFANA_URL}
 Prometheus: ${PROMETHEUS_URL}
 
-Default Credentials:
+Credentials:
   Username: admin
-  Password: admin (change on first login)
+  Password: ${GRAFANA_PASSWORD}
 
 Quick Start:
   1. Log into Grafana
