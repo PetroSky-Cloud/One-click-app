@@ -55,6 +55,28 @@ done
 echo -e ${BLU} "Installing Docker..." ${DEF}
 curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
+echo
+echo -e "${YEL}Outline requires email for authentication (magic link login).${DEF}"
+echo -e "${YEL}You need SMTP credentials to send login emails.${DEF}"
+echo
+printf "${YEL}SMTP Host (e.g., smtp.gmail.com): ${DEF}"
+read SMTP_HOST
+
+printf "${YEL}SMTP Port (e.g., 587): ${DEF}"
+read SMTP_PORT
+
+printf "${YEL}SMTP Username (your email): ${DEF}"
+read SMTP_USERNAME
+
+printf "${YEL}SMTP Password (app password): ${DEF}"
+read SMTP_PASSWORD
+
+printf "${YEL}From Email (e.g., noreply@yourdomain.com): ${DEF}"
+read SMTP_FROM_EMAIL
+
+printf "${YEL}Admin Email (for first login): ${DEF}"
+read ADMIN_EMAIL
+
 echo -e ${BLU} "Creating Outline directories..." ${DEF}
 mkdir -p /opt/outline/data
 cd /opt/outline
@@ -92,6 +114,13 @@ services:
       RATE_LIMITER_ENABLED: "true"
       RATE_LIMITER_REQUESTS: 1000
       RATE_LIMITER_DURATION_WINDOW: 60
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_REPLY_EMAIL: ${SMTP_FROM_EMAIL}
+      SMTP_SECURE: "false"
     volumes:
       - ./data:/var/lib/outline/data
     depends_on:
@@ -127,6 +156,12 @@ SECRET_KEY=${SECRET_KEY}
 UTILS_SECRET=${UTILS_SECRET}
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 DOMAIN=${DOMAIN}
+ADMIN_EMAIL=${ADMIN_EMAIL}
+SMTP_HOST=${SMTP_HOST}
+SMTP_PORT=${SMTP_PORT}
+SMTP_USERNAME=${SMTP_USERNAME}
+SMTP_PASSWORD=${SMTP_PASSWORD}
+SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
 EOFENV
 
 echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
@@ -136,7 +171,12 @@ echo -e ${BLU} "Starting Outline..." ${DEF}
 docker compose pull
 docker compose up -d
 
-sleep 30
+echo -e ${BLU} "Waiting for Outline to initialize..." ${DEF}
+sleep 45
+
+echo -e ${BLU} "Creating admin user (${ADMIN_EMAIL})..." ${DEF}
+docker compose exec -T outline node build/server/scripts/seed.js ${ADMIN_EMAIL} 2>/dev/null || true
+sleep 5
 
 ACCESS_URL="https://${DOMAIN}"
 
@@ -147,8 +187,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${RED}  IMPORTANT: You must configure authentication (SSO) to use Outline.${DEF}"
-echo -e "${YEL}  See /root/README.txt for setup instructions.${DEF}"
+echo -e "${BLU}  Admin Email: ${GRN}${ADMIN_EMAIL}${DEF}"
+echo -e "${BLU}  Login via email magic link (check your inbox).${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -159,36 +199,25 @@ Outline - Team Knowledge Base
 
 Access: ${ACCESS_URL}
 
-IMPORTANT: Authentication Setup Required!
------------------------------------------
-Outline requires SSO authentication. You must configure at least one
-authentication provider before you can log in.
+Login:
+  Admin Email: ${ADMIN_EMAIL}
+  Method: Email Magic Link (check your inbox)
 
-Authentication Options:
-  1. Slack (easiest for teams already using Slack)
-  2. Google Workspace
-  3. Microsoft/Azure AD
-  4. OIDC (any OpenID Connect provider)
-  5. SAML
+How to Login:
+  1. Open ${ACCESS_URL}
+  2. Enter your email address
+  3. Check your inbox for the magic link
+  4. Click the link to sign in
 
-To configure authentication:
-  1. Stop Outline: cd /opt/outline && docker compose down
-  2. Edit docker-compose.yml and add your auth provider env vars
-  3. Restart: docker compose up -d
+Adding More Users:
+  After logging in as admin, go to Settings > Members
+  to invite new users via email.
 
-Example - Google Authentication:
-  Add to outline service environment in docker-compose.yml:
-    GOOGLE_CLIENT_ID: your-client-id
-    GOOGLE_CLIENT_SECRET: your-client-secret
-    ALLOWED_DOMAINS: yourdomain.com
-
-Example - Slack Authentication:
-  Add to outline service environment in docker-compose.yml:
-    SLACK_CLIENT_ID: your-client-id
-    SLACK_CLIENT_SECRET: your-client-secret
-
-For full authentication setup guide:
-  https://docs.getoutline.com/s/hosting/doc/authentication-7ViKRmRY5o
+SMTP Configuration:
+  Host: ${SMTP_HOST}
+  Port: ${SMTP_PORT}
+  Username: ${SMTP_USERNAME}
+  From: ${SMTP_FROM_EMAIL}
 
 Features:
   - Beautiful document editor (Notion-like)
