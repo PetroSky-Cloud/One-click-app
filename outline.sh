@@ -99,7 +99,7 @@ services:
     environment:
       SECRET_KEY: ${SECRET_KEY}
       UTILS_SECRET: ${UTILS_SECRET}
-      DATABASE_URL: postgres://outline:${POSTGRES_PASSWORD}@postgres:5432/outline
+      DATABASE_URL: postgres://outline:${POSTGRES_PASSWORD}@postgres:5432/outline?sslmode=disable
       REDIS_URL: redis://redis:6379
       URL: https://${DOMAIN}
       PORT: 3000
