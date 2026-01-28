@@ -122,10 +122,12 @@ volumes:
   grafana-data:
 EOFCOMPOSE
 
+# Always expose Prometheus for direct access
+sed -i "s/127.0.0.1:9090:9090/9090:9090/" /opt/monitoring/docker-compose.yml
+
 if [ "$DOMAIN" = "" ]; then
     echo -e ${GRN} "Installing without TLS - exposing port 3000 directly" ${DEF}
     sed -i "s/127.0.0.1:3000:3000/3000:3000/" /opt/monitoring/docker-compose.yml
-    sed -i "s/127.0.0.1:9090:9090/9090:9090/" /opt/monitoring/docker-compose.yml
 else
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 3000 false
@@ -142,7 +144,7 @@ MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 
 
 if [ -n "$DOMAIN" ]; then
     GRAFANA_URL="https://${DOMAIN}"
-    PROMETHEUS_URL="https://${DOMAIN}:9090"
+    PROMETHEUS_URL="http://${MYIP}:9090"
 else
     GRAFANA_URL="http://${MYIP}:3000"
     PROMETHEUS_URL="http://${MYIP}:9090"
