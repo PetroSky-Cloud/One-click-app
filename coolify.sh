@@ -8,9 +8,14 @@ DEF='\e[0m'
 
 echo -e ${GRN} "Installing system utils" ${DEF}
 apt-get update -qq
-apt-get -qqq -y install curl net-tools > /dev/null 2>&1
+apt-get -qqq -y install curl net-tools bind9-host > /dev/null 2>&1
 
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
+
+validate_domain() {
+    local domain=$1
+    host "$domain" 2>/dev/null | grep -q "has address"
+}
 
 echo
 echo
@@ -18,6 +23,34 @@ echo -e ${GRN} "# ------------------------------------------------------------- 
 echo -e ${GRN} "# ${BLU}WELCOME TO COOLIFY INSTALL SCRIPT                            ${GRN}#"
 echo -e ${GRN} "# ------------------------------------------------------------- #"
 echo
+echo -e ${YEL}
+
+while true; do
+    echo
+    printf "${YEL}Please enter Domain Name, or hit enter for insecure installation: ${DEF}"
+    read DOMAIN
+
+    if [ -z "$DOMAIN" ]; then
+        echo -e "${GRN}Proceeding without TLS (HTTP only)${DEF}"
+        break
+    fi
+
+    echo -e "${BLU}Checking DNS for ${DOMAIN}...${DEF}"
+
+    if validate_domain "$DOMAIN"; then
+        RESOLVED_IP=$(host "$DOMAIN" 2>/dev/null | grep "has address" | head -1 | awk '{print $NF}')
+        if [ "$RESOLVED_IP" = "$MYIP" ]; then
+            echo -e "${GRN}DNS verified: ${DOMAIN} -> ${MYIP} (direct)${DEF}"
+        else
+            echo -e "${GRN}DNS verified: ${DOMAIN} -> ${RESOLVED_IP} (CDN/proxy)${DEF}"
+        fi
+        break
+    else
+        echo -e "${RED}ERROR: Domain '${DOMAIN}' does not resolve to any IP address.${DEF}"
+        echo -e "${YEL}Please ensure DNS is configured correctly, then try again.${DEF}"
+        echo -e "${YEL}Or press Enter to skip TLS and use HTTP only.${DEF}"
+    fi
+done
 
 echo -e ${BLU} "Ensuring SSH root login is configured (required by Coolify)..." ${DEF}
 if grep -q "^PermitRootLogin" /etc/ssh/sshd_config; then
@@ -49,8 +82,28 @@ if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q "coolify"; then
     echo -e "${YEL}Check logs: cd /data/coolify/source && docker compose logs${DEF}"
 fi
 
+if [ -n "$DOMAIN" ]; then
+    echo -e ${BLU} "Configuring domain ${DOMAIN} in Coolify..." ${DEF}
+    sleep 5
+    docker exec coolify php artisan tinker --execute="\$s = App\Models\InstanceSettings::first(); \$s->fqdn = 'https://${DOMAIN}'; \$s->save();" 2>/dev/null
+
+    FQDN_CHECK=$(docker exec coolify php artisan tinker --execute="echo App\Models\InstanceSettings::first()->fqdn;" 2>/dev/null | grep -o "https://${DOMAIN}" || true)
+    if [ -n "$FQDN_CHECK" ]; then
+        echo -e "${GRN}Domain configured: ${FQDN_CHECK}${DEF}"
+        echo -e "${BLU}Traefik will automatically obtain a TLS certificate for ${DOMAIN}${DEF}"
+    else
+        echo -e "${YEL}WARNING: Domain auto-configuration may have failed.${DEF}"
+        echo -e "${YEL}Configure manually: Coolify Settings > Configuration > Instance's Domain${DEF}"
+    fi
+fi
+
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
-ACCESS_URL="http://${MYIP}:8000"
+
+if [ -n "$DOMAIN" ]; then
+    ACCESS_URL="https://${DOMAIN}"
+else
+    ACCESS_URL="http://${MYIP}:8000"
+fi
 
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -61,11 +114,16 @@ echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
 echo -e "${YEL}  Register your admin account at the URL above.${DEF}"
 echo
-echo -e "${BLU}  To add a custom domain with HTTPS:${DEF}"
-echo -e "${BLU}    1. Log in to Coolify at the URL above${DEF}"
-echo -e "${BLU}    2. Go to Settings > Configuration${DEF}"
-echo -e "${BLU}    3. Set your domain under Instance's Domain${DEF}"
-echo -e "${BLU}    4. Coolify handles TLS/SSL automatically via Traefik${DEF}"
+if [ -n "$DOMAIN" ]; then
+    echo -e "${BLU}  TLS certificate will be obtained automatically by Traefik.${DEF}"
+    echo -e "${BLU}  It may take a minute for HTTPS to become active.${DEF}"
+else
+    echo -e "${BLU}  To add a custom domain with HTTPS:${DEF}"
+    echo -e "${BLU}    1. Log in to Coolify at the URL above${DEF}"
+    echo -e "${BLU}    2. Go to Settings > Configuration${DEF}"
+    echo -e "${BLU}    3. Set your domain under Instance's Domain${DEF}"
+    echo -e "${BLU}    4. Coolify handles TLS/SSL automatically via Traefik${DEF}"
+fi
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -80,14 +138,10 @@ First-time setup:
   1. Open the URL above
   2. Register your admin account (first user becomes admin)
 
-Custom Domain Setup:
+Custom Domain:
   Coolify includes Traefik as its built-in reverse proxy.
-  To configure a custom domain with HTTPS:
-    1. Point your domain DNS to this server (${MYIP})
-    2. Log in to Coolify dashboard
-    3. Go to Settings > Configuration
-    4. Set your domain under Instance's Domain
-    5. Coolify will automatically obtain a TLS certificate
+  Domain: ${DOMAIN:-Not configured}
+  To change the domain: Settings > Configuration > Instance's Domain
 
 Manage Coolify:
   cd /data/coolify/source
@@ -105,8 +159,8 @@ Auto-updates: Enabled by default
   To disable: edit /data/coolify/source/.env and set AUTOUPDATE=false
 
 Ports:
-  8000    Web UI (dashboard)
-  80/443  Traefik reverse proxy (for deployed apps and custom domain)
+  8000    Web UI (dashboard, always accessible)
+  80/443  Traefik reverse proxy (custom domain + deployed apps)
   6001    WebSocket
   6002    Terminal
   22      SSH (keep open)
