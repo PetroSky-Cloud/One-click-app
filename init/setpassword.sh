@@ -1,3 +1,8 @@
+#!/bin/bash
+
+apt-get update
+apt-get install -y wget bash curl net-tools
+
 SERVICE_PASSWORD="{$service.password}"
 SERVICE_DOMAIN="{$service.domain}"
 CONFIG_PASSWORD="{$config.password}"

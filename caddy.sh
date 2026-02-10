@@ -54,7 +54,7 @@ After=network-online.target
 [Service]
 WorkingDirectory = /opt/caddy/
 Environment=XDG_DATA_HOME=/opt/caddy/storage
-ExecReload=/bin/kill -HUP $MAINPID
+ExecReload=/bin/kill -HUP \$MAINPID
 ExecStart=/opt/caddy/caddy run --config /opt/caddy/caddyfile
 KillMode=process
 KillSignal=SIGINT

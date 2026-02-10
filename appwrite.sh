@@ -54,14 +54,9 @@ done
 echo -e ${BLU} "Installing Docker..." ${DEF}
 curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
-if [ -n "$DOMAIN" ]; then
-    echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 80 false
-fi
-
 echo -e ${BLU} "Installing Appwrite..." ${DEF}
 
-docker run -it --rm \
+docker run --rm \
     --volume /var/run/docker.sock:/var/run/docker.sock \
     --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
     --entrypoint="install" \
@@ -70,7 +65,7 @@ docker run -it --rm \
 if [ -n "$DOMAIN" ]; then
     ACCESS_URL="https://${DOMAIN}"
 else
-    ACCESS_URL="http://${MYIP}:80"
+    ACCESS_URL="http://${MYIP}"
 fi
 
 echo

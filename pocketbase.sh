@@ -1,59 +1,14 @@
 #!/bin/bash
 
-
-clear
-
 RED='\e[31m'
 BLU='\e[34m'
 GRN='\e[32m'
 YEL='\033[0;33m'
 DEF='\e[0m'
 
-echo
-echo
-echo -e ${GRN} "# ------------------------------------------------------------- #"
-echo -e ${GRN} "# ${BLU}WELCOME TO OUR INSTALL SCRIPT, PLEASE ANSWER TO FEW QUESTIONS ${GRN}#"
-echo -e ${GRN}  "# ------------------------------------------------------------- #"
-echo
-echo -e ${YEL}
-
-printf "%s" "Please enter Domain Name, or hit enter for insecure installation: "
-read DOMAIN
-printf "%s" "Please enter SUPER USER email: "
-read USER
-printf "%s" "Please enter SUPER USER password: "
-read PASS
-
-MYIP=`curl -s https://ipv4.icanhazip.com`
-
-while : ; do
-    if host $DOMAIN 1.1.1.1| grep $MYIP ; then
-        echo CloudFlare Matched!
-        break
-    else
-        echo CloudFlare: $DOMAIN not match $MYIP
-        sleep 5
-    fi
-    if host $DOMAIN 8.8.8.8| grep $MYIP ; then
-        echo Google Matched !
-        break
-    else
-        echo Google    : $DOMAIN not match $MYIP
-        sleep 5
-    fi
-    if host $DOMAIN| grep $MYIP ; then
-        echo Local     : $DOMAIN not match $MYIP
-        break
-    else
-        echo Local $DOMAIN not match $MYIP
-        sleep 5
-    fi
-done
-
-
-echo -e ${DEF}
-
-apt-get -y install unzip wget curl
+echo -e ${GRN} "Installing system utils" ${DEF}
+apt-get update -qq
+apt-get -qqq -y install unzip wget curl net-tools bind9-host > /dev/null 2>&1
 
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
 
@@ -61,25 +16,71 @@ validate_domain() {
     local domain=$1
     host "$domain" 2>/dev/null | grep -q "has address"
 }
+
+echo
+echo
+echo -e ${GRN} "# ------------------------------------------------------------- #"
+echo -e ${GRN} "# ${BLU}WELCOME TO POCKETBASE INSTALL SCRIPT                           ${GRN}#"
+echo -e ${GRN} "# ------------------------------------------------------------- #"
+echo
+echo -e ${YEL}
+
+while true; do
+    echo
+    printf "${YEL}Please enter Domain Name, or hit enter for insecure installation: ${DEF}"
+    read DOMAIN
+
+    if [ -z "$DOMAIN" ]; then
+        echo -e "${GRN}Proceeding without TLS (HTTP only)${DEF}"
+        break
+    fi
+
+    echo -e "${BLU}Checking DNS for ${DOMAIN}...${DEF}"
+
+    if validate_domain "$DOMAIN"; then
+        RESOLVED_IP=$(host "$DOMAIN" 2>/dev/null | grep "has address" | head -1 | awk '{print $NF}')
+        if [ "$RESOLVED_IP" = "$MYIP" ]; then
+            echo -e "${GRN}DNS verified: ${DOMAIN} -> ${MYIP} (direct)${DEF}"
+        else
+            echo -e "${GRN}DNS verified: ${DOMAIN} -> ${RESOLVED_IP} (CDN/proxy)${DEF}"
+        fi
+        break
+    else
+        echo -e "${RED}ERROR: Domain '${DOMAIN}' does not resolve to any IP address.${DEF}"
+        echo -e "${YEL}Please ensure DNS is configured correctly, then try again.${DEF}"
+        echo -e "${YEL}Or press Enter to skip TLS and use HTTP only.${DEF}"
+    fi
+done
+
+echo
+printf "${YEL}Please enter SUPER USER email: ${DEF}"
+read ADMIN_EMAIL
+printf "${YEL}Please enter SUPER USER password: ${DEF}"
+read ADMIN_PASS
+
+echo -e ${BLU} "Installing PocketBase..." ${DEF}
 mkdir -p /opt/pocketbase
 cd /opt/pocketbase
 PB_VERSION=$(curl -s https://api.github.com/repos/pocketbase/pocketbase/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
 wget -qO pocketbase.zip https://github.com/pocketbase/pocketbase/releases/download/v${PB_VERSION}/pocketbase_${PB_VERSION}_linux_amd64.zip
-unzip pocketbase.zip
+unzip -o pocketbase.zip
+rm -f pocketbase.zip
 
-./pocketbase superuser upsert  $USER $PASS
+./pocketbase superuser upsert "$ADMIN_EMAIL" "$ADMIN_PASS"
 
-cat > /etc/systemd/system/pocketbase.service <<- EOF
+SERVE_ARGS="--http=0.0.0.0:8090"
+
+cat > /etc/systemd/system/pocketbase.service << 'EOFSVC'
 [Unit]
-Description=Pocketbase
-Documentation=https://github.com/pocketbase/pocketbase
+Description=PocketBase
+Documentation=https://pocketbase.io/docs
 Wants=network-online.target
 After=network-online.target
 
 [Service]
-WorkingDirectory = /opt/pocketbase/
+WorkingDirectory=/opt/pocketbase/
 ExecReload=/bin/kill -HUP $MAINPID
-ExecStart=/opt/pocketbase/pocketbase serve ${DOMAIN}
+ExecStart=/opt/pocketbase/pocketbase serve --http=0.0.0.0:8090
 KillMode=process
 KillSignal=SIGINT
 LimitNOFILE=infinity
@@ -92,16 +93,67 @@ TasksMax=infinity
 
 [Install]
 WantedBy=multi-user.target
+EOFSVC
+
+systemctl daemon-reload
+systemctl enable pocketbase.service
+systemctl restart pocketbase.service
+
+if [ -n "$DOMAIN" ]; then
+    echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8090 false
+fi
+
+MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+
+if [ -n "$DOMAIN" ]; then
+    ACCESS_URL="https://${DOMAIN}"
+else
+    ACCESS_URL="http://${MYIP}:8090"
+fi
+
+echo
+echo -e "${GRN}========================================================================${DEF}"
+echo -e "${GRN}                POCKETBASE INSTALLATION COMPLETE                        ${DEF}"
+echo -e "${GRN}========================================================================${DEF}"
+echo
+echo -e "${YEL}  DASHBOARD:   ${GRN}${ACCESS_URL}/_/${DEF}"
+echo -e "${YEL}  API:         ${GRN}${ACCESS_URL}/api/${DEF}"
+echo
+echo -e "${BLU}  Admin Email: ${GRN}${ADMIN_EMAIL}${DEF}"
+echo
+echo -e "${GRN}========================================================================${DEF}"
+echo
+
+cat > /root/README.txt << EOF
+PocketBase - Backend as a Service
+==================================
+
+Dashboard: ${ACCESS_URL}/_/
+API: ${ACCESS_URL}/api/
+
+Admin Email: ${ADMIN_EMAIL}
+
+Manage PocketBase:
+  systemctl status pocketbase    # Check status
+  systemctl restart pocketbase   # Restart
+  journalctl -u pocketbase -f    # View logs
+
+Data: /opt/pocketbase/pb_data
+Configuration: /opt/pocketbase/
+
+Update PocketBase:
+  cd /opt/pocketbase
+  systemctl stop pocketbase
+  # Download new version and replace binary
+  systemctl start pocketbase
+
+Documentation: https://pocketbase.io/docs
+
+Installed: $(date)
 EOF
 
-systemctl  daemon-reload
-systemctl  enable pocketbase.service
-systemctl  restart pocketbase.service
-
-echo -e ${GRN}
-echo Congratulation the installation completed successsfully
-echo Open your dashboerd at: https://${DOMAIN}/_/ in your browser
-echo API is available at: https://${DOMAIN}/api/ in your browser
-echo -e ${DEF}
+echo -e "${BLU}README: /root/README.txt${DEF}"
+echo
 
 rm -f /etc/profile.d/install.sh

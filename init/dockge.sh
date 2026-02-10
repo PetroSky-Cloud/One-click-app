@@ -30,6 +30,8 @@ fi
 if [ -n "$PASSWORD_TO_USE" ]; then
     echo "root:$PASSWORD_TO_USE" | chpasswd > /dev/null 2>&1
     echo "[$(date)] Root password updated"
+else
+    echo "[$(date)] WARNING: No password configured!"
 fi
 
 if [ -n "$CONFIG_USER" ] && [ "$CONFIG_USER" != "{config.ciuser}" ] && [ "$CONFIG_USER" != "root" ]; then

@@ -7,7 +7,7 @@ YEL='\033[0;33m'
 DEF='\e[0m'
 
 echo -e "${BLU} Please wait preparing the initial setup ${DEF}"
-apt-get remove --purge docker.io docker-doc docker-compose podman-docker containerd runc > /dev/null  2>&1
+apt-get remove --purge -y docker.io docker-doc docker-compose podman-docker containerd runc > /dev/null  2>&1
 
 sudo apt-get update > /dev/null  2>&1
 sudo apt-get install -y ca-certificates curl > /dev/null  2>&1
