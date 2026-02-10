@@ -16,7 +16,7 @@ set -euo pipefail
 
 echo "[$(date)] Vaultwarden Installation Started"
 
-if [ -n "$SERVICE_DOMAIN" ]; then
+if [ -n "$SERVICE_DOMAIN" ] && [ "$SERVICE_DOMAIN" != "{service.domain}" ]; then
     hostnamectl set-hostname "$SERVICE_DOMAIN"
     echo "[$(date)] Hostname set to: $SERVICE_DOMAIN"
 fi
