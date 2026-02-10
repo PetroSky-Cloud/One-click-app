@@ -18,7 +18,7 @@ PORT=$2
 SECURE=$3
 
 echo -e ${BLU} "Downloading and installing Caddy Server (latest version)" ${DEF}
-mkdir /opt/caddy
+mkdir -p /opt/caddy
 cd  /opt/caddy
 CADDY_VERSION=$(curl -s https://api.github.com/repos/caddyserver/caddy/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
 wget -q https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz
@@ -39,8 +39,7 @@ EOF
   else
 cat > /opt/caddy/caddyfile <<- EOF
 ${DOMAIN} {
-reverse_proxy 127.0.0.1:${PORT} {
-}
+reverse_proxy 127.0.0.1:${PORT}
 }
 EOF
     fi

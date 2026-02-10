@@ -75,6 +75,33 @@ services:
       - /run/dbus:/run/dbus:ro
 EOFCOMPOSE
 
+echo -e ${BLU} "Creating configuration.yaml..." ${DEF}
+if [ -n "$DOMAIN" ]; then
+    cat > /opt/homeassistant/config/configuration.yaml << 'EOFCONFIG'
+homeassistant:
+  name: Home
+  unit_system: metric
+  time_zone: UTC
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 127.0.0.1
+    - ::1
+
+default_config:
+EOFCONFIG
+else
+    cat > /opt/homeassistant/config/configuration.yaml << 'EOFCONFIG'
+homeassistant:
+  name: Home
+  unit_system: metric
+  time_zone: UTC
+
+default_config:
+EOFCONFIG
+fi
+
 if [ -n "$DOMAIN" ]; then
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8123 false
@@ -84,7 +111,23 @@ echo -e ${BLU} "Starting Home Assistant..." ${DEF}
 docker compose pull
 docker compose up -d
 
-sleep 30
+echo -e ${BLU} "Waiting for Home Assistant to start (first boot takes 1-2 minutes)..." ${DEF}
+TIMEOUT=120
+ELAPSED=0
+while [ $ELAPSED -lt $TIMEOUT ]; do
+    if curl -s -o /dev/null -w "%{http_code}" http://localhost:8123 2>/dev/null | grep -q "200\|302"; then
+        echo -e "${GRN}Home Assistant is running!${DEF}"
+        break
+    fi
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
+    echo -e "${BLU}  Still waiting... (${ELAPSED}s)${DEF}"
+done
+
+if ! docker ps --format '{{.Names}}' | grep -q "homeassistant"; then
+    echo -e "${RED}WARNING: Home Assistant container may not have started.${DEF}"
+    echo -e "${YEL}Check: cd /opt/homeassistant && docker compose logs${DEF}"
+fi
 
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
 
@@ -130,9 +173,14 @@ Network Mode:
   Home Assistant runs in host network mode for device discovery.
   This allows mDNS, Bluetooth, and other discovery protocols.
 
+Reverse Proxy:
+  If using a domain, configuration.yaml is pre-configured with
+  trusted_proxies for the Caddy reverse proxy (127.0.0.1).
+
 Ports used:
-  - 8123: Web interface
-  - Various ports for integrations (Zigbee, Z-Wave, etc.)
+  - 8123: Web interface (direct access)
+  - 443:  HTTPS via Caddy (if domain configured)
+  - 80:   HTTP redirect (if domain configured)
 
 Manage Home Assistant:
   cd /opt/homeassistant
