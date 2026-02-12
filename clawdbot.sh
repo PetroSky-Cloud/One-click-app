@@ -126,8 +126,10 @@ chmod 700 /home/openclaw/.openclaw
 chmod 600 /home/openclaw/.openclaw/openclaw.json
 echo -e ${GRN} "Secure configuration created" ${DEF}
 
+OPENCLAW_BIN=$(which openclaw 2>/dev/null || echo "/usr/bin/openclaw")
+
 echo -e ${BLU} "Setting up systemd service..." ${DEF}
-cat > /etc/systemd/system/openclaw-gateway.service << 'EOFSERVICE'
+cat > /etc/systemd/system/openclaw-gateway.service << EOFSERVICE
 [Unit]
 Description=OpenClaw Gateway
 After=network.target
@@ -136,7 +138,7 @@ After=network.target
 Type=simple
 User=openclaw
 WorkingDirectory=/home/openclaw
-ExecStart=/usr/bin/openclaw gateway
+ExecStart=${OPENCLAW_BIN} gateway
 Restart=always
 RestartSec=10
 Environment=NODE_ENV=production
