@@ -96,11 +96,6 @@ cat > /home/openclaw/.openclaw/openclaw.json << EOFCONFIG
       "dangerouslyDisableDeviceAuth": false
     }
   },
-  "channels": {
-    "defaults": {
-      "dmPolicy": "pairing"
-    }
-  },
   "agents": {
     "defaults": {
       "sandbox": {
@@ -150,7 +145,16 @@ EOFSERVICE
 
 systemctl daemon-reload
 
-MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || hostname -I | awk '{print $1}')
+MYIP=$(curl -4s --max-time 5 ifconfig.me 2>/dev/null)
+if ! echo "$MYIP" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+    MYIP=$(curl -4s --max-time 5 icanhazip.com 2>/dev/null)
+fi
+if ! echo "$MYIP" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+    MYIP=$(hostname -I 2>/dev/null | awk '{print $1}')
+fi
+if ! echo "$MYIP" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$'; then
+    MYIP="YOUR_SERVER_IP"
+fi
 
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -175,9 +179,9 @@ echo
 echo -e "${RED}  SECURITY:${DEF}"
 echo -e "  - Gateway auth token generated (see /root/credentials.txt)"
 echo -e "  - Gateway binds to localhost only (never exposed publicly)"
-echo -e "  - DM policy: pairing mode (unknown senders must pair first)"
 echo -e "  - Sandbox: enabled for all agents (isolated tool execution)"
 echo -e "  - mDNS discovery: disabled"
+echo -e "  - Set dmPolicy to 'pairing' per channel during onboarding"
 echo -e "  - Never expose port 18789 to the internet"
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -245,9 +249,9 @@ SECURITY
 ========
 - Gateway binds to localhost only (127.0.0.1:18789)
 - Gateway auth: token mode (see /root/credentials.txt)
-- DM policy: pairing (unknown senders must pair first)
 - Sandbox: enabled for all agents (isolated execution)
 - mDNS discovery: disabled
+- Set dmPolicy to 'pairing' per channel during onboarding
 - Access via SSH tunnel or Tailscale only
 - Never expose port 18789 to the internet directly
 - UFW firewall enabled (SSH only, all other ports blocked)
