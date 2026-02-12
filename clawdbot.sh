@@ -8,23 +8,16 @@ DEF='\e[0m'
 
 echo -e ${GRN} "Installing system dependencies" ${DEF}
 apt-get update -qq
-apt-get -qqq -y install curl wget gnupg ca-certificates net-tools ufw fail2ban > /dev/null 2>&1
+apt-get -qqq -y install curl wget gnupg ca-certificates net-tools ufw fail2ban openssl > /dev/null 2>&1
 
 echo
 echo
 echo -e ${GRN} "# ------------------------------------------------------------- #"
-echo -e ${GRN} "# ${BLU}WELCOME TO CLAWDBOT INSTALL SCRIPT                            ${GRN}#"
-echo -e ${GRN} "# ${YEL}Self-Hosted Personal AI Assistant                             ${GRN}#"
+echo -e ${GRN} "# ${BLU}WELCOME TO OPENCLAW INSTALL SCRIPT                             ${GRN}#"
+echo -e ${GRN} "# ${YEL}Self-Hosted Personal AI Assistant (formerly Clawdbot)          ${GRN}#"
 echo -e ${GRN} "# ------------------------------------------------------------- #"
 echo
 echo -e ${YEL}
-
-echo -e ${BLU} "Disabling IPv6..." ${DEF}
-cat >> /etc/sysctl.conf << 'EOFIPV6'
-net.ipv6.conf.all.disable_ipv6 = 1
-net.ipv6.conf.default.disable_ipv6 = 1
-EOFIPV6
-sysctl -p > /dev/null 2>&1
 
 echo -e ${BLU} "Configuring firewall (UFW)..." ${DEF}
 ufw default deny incoming > /dev/null 2>&1
@@ -60,9 +53,6 @@ apt-get install -y nodejs > /dev/null 2>&1
 NODE_VERSION=$(node --version)
 echo -e ${GRN} "Node.js ${NODE_VERSION} installed" ${DEF}
 
-echo -e ${BLU} "Installing pnpm..." ${DEF}
-npm install -g pnpm > /dev/null 2>&1
-
 echo -e ${BLU} "Adding swap space (2GB)..." ${DEF}
 if [ ! -f /swapfile ]; then
     fallocate -l 2G /swapfile
@@ -72,39 +62,85 @@ if [ ! -f /swapfile ]; then
     echo '/swapfile none swap sw 0 0' >> /etc/fstab
 fi
 
-echo -e ${BLU} "Installing Clawdbot..." ${DEF}
-npm install -g clawdbot@latest 2>&1 | grep -E "added|packages"
+echo -e ${BLU} "Installing OpenClaw..." ${DEF}
+npm install -g openclaw@latest 2>&1 | grep -E "added|packages"
 
-CLAWDBOT_VERSION=$(clawdbot --version 2>/dev/null)
-echo -e ${GRN} "Clawdbot ${CLAWDBOT_VERSION} installed" ${DEF}
+OPENCLAW_VERSION=$(openclaw --version 2>/dev/null)
+echo -e ${GRN} "OpenClaw ${OPENCLAW_VERSION} installed" ${DEF}
 
-echo -e ${BLU} "Building Control UI assets..." ${DEF}
-cd /usr/lib/node_modules/clawdbot 2>/dev/null && pnpm ui:build > /dev/null 2>&1 || true
-cd /root
+echo -e ${BLU} "Creating openclaw user..." ${DEF}
+useradd -m -s /bin/bash openclaw 2>/dev/null || true
 
-echo -e ${BLU} "Creating clawdbot user..." ${DEF}
-useradd -m -s /bin/bash clawdbot 2>/dev/null || true
+echo -e ${BLU} "Configuring npm for openclaw user..." ${DEF}
+sudo -u openclaw mkdir -p /home/openclaw/.npm-global
+sudo -u openclaw npm config set prefix '/home/openclaw/.npm-global'
+echo 'export PATH=/home/openclaw/.npm-global/bin:$PATH' >> /home/openclaw/.bashrc
+echo 'export PATH=/home/openclaw/.npm-global/bin:$PATH' >> /home/openclaw/.profile
 
-echo -e ${BLU} "Configuring npm for clawdbot user..." ${DEF}
-sudo -u clawdbot mkdir -p /home/clawdbot/.npm-global
-sudo -u clawdbot npm config set prefix '/home/clawdbot/.npm-global'
-echo 'export PATH=/home/clawdbot/.npm-global/bin:$PATH' >> /home/clawdbot/.bashrc
-echo 'export PATH=/home/clawdbot/.npm-global/bin:$PATH' >> /home/clawdbot/.profile
+echo -e ${BLU} "Generating gateway auth token..." ${DEF}
+GATEWAY_TOKEN=$(openssl rand -hex 32)
+
+echo -e ${BLU} "Creating secure OpenClaw configuration..." ${DEF}
+sudo -u openclaw mkdir -p /home/openclaw/.openclaw
+
+cat > /home/openclaw/.openclaw/openclaw.json << EOFCONFIG
+{
+  "gateway": {
+    "bind": "loopback",
+    "port": 18789,
+    "auth": {
+      "mode": "token",
+      "token": "${GATEWAY_TOKEN}"
+    },
+    "controlUi": {
+      "dangerouslyDisableDeviceAuth": false
+    }
+  },
+  "channels": {
+    "defaults": {
+      "dmPolicy": "pairing"
+    }
+  },
+  "agents": {
+    "defaults": {
+      "sandbox": {
+        "mode": "all",
+        "scope": "agent",
+        "workspaceAccess": "none"
+      }
+    }
+  },
+  "discovery": {
+    "mdns": {
+      "mode": "off"
+    }
+  },
+  "logging": {
+    "redactSensitive": "tools"
+  }
+}
+EOFCONFIG
+
+chown -R openclaw:openclaw /home/openclaw/.openclaw
+chmod 700 /home/openclaw/.openclaw
+chmod 600 /home/openclaw/.openclaw/openclaw.json
+echo -e ${GRN} "Secure configuration created" ${DEF}
 
 echo -e ${BLU} "Setting up systemd service..." ${DEF}
-cat > /etc/systemd/system/clawdbot-gateway.service << 'EOFSERVICE'
+cat > /etc/systemd/system/openclaw-gateway.service << 'EOFSERVICE'
 [Unit]
-Description=Clawdbot Gateway
+Description=OpenClaw Gateway
 After=network.target
 
 [Service]
 Type=simple
-User=clawdbot
-WorkingDirectory=/home/clawdbot
-ExecStart=/usr/bin/clawdbot gateway
+User=openclaw
+WorkingDirectory=/home/openclaw
+ExecStart=/usr/bin/openclaw gateway
 Restart=always
 RestartSec=10
 Environment=NODE_ENV=production
+Environment=OPENCLAW_GATEWAY_BIND=loopback
 
 [Install]
 WantedBy=multi-user.target
@@ -116,41 +152,61 @@ MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 
 
 echo
 echo -e "${GRN}========================================================================${DEF}"
-echo -e "${GRN}                  CLAWDBOT INSTALLATION COMPLETE                        ${DEF}"
+echo -e "${GRN}                  OPENCLAW INSTALLATION COMPLETE                        ${DEF}"
 echo -e "${GRN}========================================================================${DEF}"
 echo
 echo -e "${YEL}  NEXT STEPS:${DEF}"
 echo
 echo -e "${BLU}  1. Run the onboarding wizard:${DEF}"
-echo -e "     sudo -iu clawdbot clawdbot onboard"
+echo -e "     sudo -iu openclaw openclaw onboard"
 echo
 echo -e "${BLU}  2. Start the gateway service:${DEF}"
-echo -e "     systemctl enable --now clawdbot-gateway"
+echo -e "     systemctl enable --now openclaw-gateway"
 echo
 echo -e "${BLU}  3. Access Control UI via SSH tunnel:${DEF}"
 echo -e "     ssh -L 18789:127.0.0.1:18789 root@${MYIP}"
 echo -e "     Then open: ${GRN}http://127.0.0.1:18789/${DEF}"
 echo
-echo -e "${RED}  IMPORTANT:${DEF}"
-echo -e "  - The onboarding wizard will ask for your Anthropic/OpenAI OAuth"
-echo -e "  - Claude Pro or Max subscription recommended for best experience"
-echo -e "  - Gateway binds to localhost only (secure by default)"
+echo -e "${BLU}  4. Run security audit after setup:${DEF}"
+echo -e "     sudo -iu openclaw openclaw security audit --deep"
+echo
+echo -e "${RED}  SECURITY:${DEF}"
+echo -e "  - Gateway auth token generated (see /root/credentials.txt)"
+echo -e "  - Gateway binds to localhost only (never exposed publicly)"
+echo -e "  - DM policy: pairing mode (unknown senders must pair first)"
+echo -e "  - Sandbox: enabled for all agents (isolated tool execution)"
+echo -e "  - mDNS discovery: disabled"
+echo -e "  - Never expose port 18789 to the internet"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
 
+cat > /root/credentials.txt << EOF
+OpenClaw Credentials
+====================
+
+Gateway Auth Token: ${GATEWAY_TOKEN}
+Server IP: ${MYIP}
+
+Use this token when connecting remote clients or the Control UI.
+Keep this file secure and delete after noting credentials.
+
+Generated: $(date)
+EOF
+chmod 600 /root/credentials.txt
+
 cat > /root/README.txt << EOF
-Clawdbot - Self-Hosted Personal AI Assistant
+OpenClaw - Self-Hosted Personal AI Assistant
 =============================================
 
-Version: ${CLAWDBOT_VERSION}
+Version: ${OPENCLAW_VERSION}
 Server IP: ${MYIP}
 
 SETUP INSTRUCTIONS
 ==================
 
 1. Run the onboarding wizard (interactive):
-   sudo -iu clawdbot clawdbot onboard
+   sudo -iu openclaw openclaw onboard
 
    This will:
    - Set up your AI provider (Anthropic Claude or OpenAI)
@@ -158,7 +214,7 @@ SETUP INSTRUCTIONS
    - Create your workspace
 
 2. Start the gateway service:
-   systemctl enable --now clawdbot-gateway
+   systemctl enable --now openclaw-gateway
 
 3. Access the Control UI:
    From your local machine, create an SSH tunnel:
@@ -167,11 +223,8 @@ SETUP INSTRUCTIONS
    Then open in browser:
    http://127.0.0.1:18789/
 
-RECOMMENDED AI PROVIDER
-=======================
-Anthropic Claude Pro or Max subscription
-- Claude Opus 4.5 provides the best experience
-- OAuth login during onboarding
+4. Run security audit:
+   sudo -iu openclaw openclaw security audit --deep
 
 AVAILABLE CHANNELS
 ==================
@@ -184,11 +237,16 @@ AVAILABLE CHANNELS
 - Microsoft Teams
 - Google Chat
 - WebChat
+- iMessage (via BlueBubbles)
 
 SECURITY
 ========
 - Gateway binds to localhost only (127.0.0.1:18789)
-- Access via SSH tunnel or Tailscale
+- Gateway auth: token mode (see /root/credentials.txt)
+- DM policy: pairing (unknown senders must pair first)
+- Sandbox: enabled for all agents (isolated execution)
+- mDNS discovery: disabled
+- Access via SSH tunnel or Tailscale only
 - Never expose port 18789 to the internet directly
 - UFW firewall enabled (SSH only, all other ports blocked)
 - Fail2ban active (blocks IPs after 3 failed SSH attempts for 24h)
@@ -201,31 +259,34 @@ fail2ban-client unban <IP>    # Unban an IP address
 
 MANAGEMENT COMMANDS
 ===================
-clawdbot gateway              # Start gateway (foreground)
-clawdbot channel list         # List connected channels
-clawdbot skill list           # List available skills
-clawdbot memory search <term> # Search memory
-systemctl status clawdbot-gateway   # Check service status
-systemctl restart clawdbot-gateway  # Restart service
-journalctl -u clawdbot-gateway -f   # View logs
+openclaw gateway              # Start gateway (foreground)
+openclaw doctor               # Check configuration health
+openclaw security audit       # Run security audit
+openclaw security audit --deep # Deep security audit
+openclaw channel list         # List connected channels
+openclaw skill list           # List available skills
+openclaw pairing list <chan>  # List pending pairing requests
+systemctl status openclaw-gateway   # Check service status
+systemctl restart openclaw-gateway  # Restart service
+journalctl -u openclaw-gateway -f   # View logs
 
-MEMORY & DATA
+DATA & CONFIG
 =============
-All data stored in: /home/clawdbot/.clawdbot/
-- Memory: Plain text Markdown files
-- Settings: YAML configuration
-- Compatible with Obsidian and standard backup tools
+Config: /home/openclaw/.openclaw/openclaw.json
+Data:   /home/openclaw/.openclaw/
+Logs:   journalctl -u openclaw-gateway
 
 RESOURCES
 =========
-Documentation: https://docs.clawd.bot
-GitHub: https://github.com/clawdbot/clawdbot
-Discord: https://discord.gg/clawdbot
+Documentation: https://docs.openclaw.ai
+GitHub: https://github.com/openclaw/openclaw
+Website: https://openclaw.ai
 
 Installed: $(date)
 EOF
 
 echo -e "${BLU}README: /root/README.txt${DEF}"
+echo -e "${BLU}Credentials: /root/credentials.txt${DEF}"
 echo
 
 rm -f /etc/profile.d/install.sh

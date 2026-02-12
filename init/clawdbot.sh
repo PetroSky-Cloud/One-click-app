@@ -15,7 +15,7 @@ CONFIG_USER="{$config.ciuser}"
 {literal}
 set -euo pipefail
 
-echo "[$(date)] Clawdbot Installation Started"
+echo "[$(date)] OpenClaw Installation Started"
 
 # Configure UFW firewall
 echo "[$(date)] Configuring firewall..."
