@@ -62,7 +62,7 @@ systemctl restart sshd 2>/dev/null || systemctl restart ssh 2>/dev/null
 
 echo -e ${BLU} "Running official Coolify installer (this may take several minutes)..." ${DEF}
 
-curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash
+curl -fsSL https://cdn.coollabs.io/coolify/install.sh | bash > /tmp/coolify-install.log 2>&1
 
 echo -e ${BLU} "Waiting for Coolify to start (this may take 2-3 minutes)..." ${DEF}
 TIMEOUT=180
