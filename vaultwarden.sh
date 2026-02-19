@@ -8,7 +8,7 @@ DEF='\e[0m'
 
 echo -e ${GRN} "Installing system utils" ${DEF}
 apt-get update -qq
-apt-get -qqq -y install curl uuid-runtime net-tools bind9-host > /dev/null 2>&1
+apt-get -qqq -y install curl net-tools bind9-host > /dev/null 2>&1
 
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
 
@@ -53,49 +53,50 @@ while true; do
     fi
 done
 
-if [ -n "$DOMAIN" ]; then
-    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8000 false
-fi
-
 echo -e ${BLU} "Installing Docker..." ${DEF}
 curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
+if ! command -v docker &> /dev/null; then
+    echo -e "${RED}ERROR: Docker installation failed. Aborting.${DEF}"
+    rm -f /etc/profile.d/install.sh
+    return 1 2>/dev/null || exit 1
+fi
+
 mkdir -p /opt/vaultwarden
-cd /opt/vaultwarden
 
 echo -e ${BLU} "Generating admin token..." ${DEF}
 ADMIN_TOKEN=$(openssl rand -base64 48 | tr -d '\n')
 
 if [ -n "$DOMAIN" ]; then
     DOMAIN_ENV="https://${DOMAIN}"
+    PUBLISH_FLAG="127.0.0.1:8000:80"
 else
     DOMAIN_ENV="http://${MYIP}:8000"
+    PUBLISH_FLAG="8000:80"
 fi
 
-echo -e ${BLU} "Starting Vaultwarden..." ${DEF}
+echo -e ${BLU} "Pulling Vaultwarden..." ${DEF}
 docker pull vaultwarden/server:latest
+
+echo -e ${BLU} "Starting Vaultwarden..." ${DEF}
 docker run -d --name vaultwarden \
   --env DOMAIN="${DOMAIN_ENV}" \
   --env ADMIN_TOKEN="${ADMIN_TOKEN}" \
   --volume /opt/vaultwarden/data/:/data/ \
   --restart unless-stopped \
-  --publish 127.0.0.1:8000:80 \
+  --publish ${PUBLISH_FLAG} \
   vaultwarden/server:latest
 
-# If no domain, bind to all interfaces
-if [ -z "$DOMAIN" ]; then
-    docker stop vaultwarden
-    docker rm vaultwarden
-    docker run -d --name vaultwarden \
-      --env DOMAIN="${DOMAIN_ENV}" \
-      --env ADMIN_TOKEN="${ADMIN_TOKEN}" \
-      --volume /opt/vaultwarden/data/:/data/ \
-      --restart unless-stopped \
-      --publish 8000:80 \
-      vaultwarden/server:latest
+if [ -n "$DOMAIN" ]; then
+    echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
+    curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8000 false
 fi
 
-sleep 15
+sleep 5
+
+if ! docker ps --format '{{.Names}}' | grep -q "^vaultwarden$"; then
+    echo -e "${RED}WARNING: Vaultwarden container is not running. Check: docker logs vaultwarden${DEF}"
+fi
 
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
 
