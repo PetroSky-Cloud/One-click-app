@@ -200,9 +200,23 @@ cat > /opt/matrix/element/config.json << ELEMENTEOF
 }
 ELEMENTEOF
 
-# Write Caddyfile — single domain handles Matrix + Element
+# Write well-known static files (required for Matrix client discovery)
+# Directory must mirror URL path: /.well-known/matrix/* -> /opt/matrix/wellknown/.well-known/matrix/*
+mkdir -p /opt/matrix/wellknown/.well-known/matrix
+printf '{"m.homeserver":{"base_url":"https://%s"},"m.identity_server":{"base_url":"https://vector.im"}}' "${DOMAIN}" > /opt/matrix/wellknown/.well-known/matrix/client
+printf '{"m.server":"%s:443"}' "${DOMAIN}" > /opt/matrix/wellknown/.well-known/matrix/server
+
+# Write Caddyfile — single domain handles Matrix + Element + well-known
 cat > /opt/matrix/caddy/Caddyfile << CADDYEOF
 ${DOMAIN} {
+    # Matrix well-known discovery (required for Matrix clients to find homeserver)
+    handle /.well-known/matrix/* {
+        root * /srv/wellknown
+        file_server
+        header Content-Type application/json
+        header Access-Control-Allow-Origin *
+    }
+
     # Matrix client API and federation
     handle /_matrix/* {
         reverse_proxy synapse:8008 {
@@ -278,6 +292,7 @@ services:
       - "443:443/udp"
     volumes:
       - /opt/matrix/caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /opt/matrix/wellknown:/srv/wellknown:ro
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
