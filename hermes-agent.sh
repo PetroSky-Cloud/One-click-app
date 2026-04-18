@@ -159,6 +159,72 @@ done
 log "installer: official installer finished (hermes binary present)"
 
 # ---------------------------------------------------------------------------
+# Weekly auto-update cron. 'hermes update' only modifies the code repo at
+# /root/.hermes/hermes-agent/ (git pull + pip install) — user data in
+# /root/.hermes/{.env,config.yaml,sessions,memories,pairing} is untouched.
+# User-modified bundled skills are preserved (skills_sync respects them).
+# Non-TTY safe: Hermes checks isatty() before prompting.
+# Gateway auto-restarts after update.
+# ---------------------------------------------------------------------------
+log "cron: installing weekly auto-update"
+cat > /etc/cron.weekly/hermes-update <<'CRON'
+#!/bin/bash
+# Hermes Agent weekly auto-update. See /var/log/hermes-update.log for output.
+set -e
+export HOME=/root
+export PATH="/root/.local/bin:$PATH"
+LOG=/var/log/hermes-update.log
+touch "$LOG"
+chmod 600 "$LOG"
+{
+    echo "=== $(date -u +%FT%TZ) - hermes update starting ==="
+    if command -v hermes >/dev/null 2>&1; then
+        flock -n /var/lock/hermes-update.lock -c 'hermes update' || echo "update skipped (lock held or exit $?)"
+    else
+        echo "hermes binary not found, skipping"
+    fi
+    echo "=== $(date -u +%FT%TZ) - hermes update done ==="
+} >> "$LOG" 2>&1
+CRON
+chmod 0755 /etc/cron.weekly/hermes-update
+
+# ---------------------------------------------------------------------------
+# Dynamic MOTD — shows Hermes version, LLM config state, gateway status, and
+# quick commands on every interactive SSH login. Uses only file checks (no
+# systemctl --user which needs a live user bus) to stay fast and lightweight.
+# ---------------------------------------------------------------------------
+log "motd: installing /etc/update-motd.d/99-hermes"
+cat > /etc/update-motd.d/99-hermes <<'MOTD'
+#!/bin/bash
+# Hermes Agent status on login. Non-fatal if anything is missing.
+HERMES_BIN=/root/.local/bin/hermes
+[ -x "$HERMES_BIN" ] || exit 0
+
+version=$("$HERMES_BIN" version 2>/dev/null | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9a-z.-]+' | head -1)
+
+llm=no
+if [ -r /root/.hermes/.env ] && grep -qE '^[A-Z_]+API_KEY=..*' /root/.hermes/.env; then
+    llm=yes
+fi
+
+gw=absent
+if [ -f /root/.config/systemd/user/hermes-gateway.service ] || \
+   [ -f /etc/systemd/system/hermes-gateway.service ]; then
+    gw=installed
+fi
+
+channels=no
+if [ -r /root/.hermes/.env ] && grep -qE '^(TELEGRAM_BOT_TOKEN|DISCORD_BOT_TOKEN|SLACK_BOT_TOKEN|WHATSAPP_ENABLED)=..*' /root/.hermes/.env; then
+    channels=yes
+fi
+
+printf '\n'
+printf '  Hermes Agent %-12s  LLM: %s   Channels: %s   Gateway: %s\n' "${version:-unknown}" "$llm" "$channels" "$gw"
+printf '  Quick: hermes  |  hermes doctor  |  hermes gateway status  |  hermes update\n\n'
+MOTD
+chmod 0755 /etc/update-motd.d/99-hermes
+
+# ---------------------------------------------------------------------------
 # 5. README
 # ---------------------------------------------------------------------------
 log "readme: writing /root/README.txt"
