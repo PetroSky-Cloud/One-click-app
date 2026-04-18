@@ -121,10 +121,18 @@ chmod 600 "$ENV_FILE"
 # 4. Hand off to the OFFICIAL installer
 # ---------------------------------------------------------------------------
 log "installer: downloading and executing $HERMES_INSTALLER_URL (takes 3-5 min)"
+# Hermes's installer puts uv in ~/.local/bin then immediately expects to find
+# uv on PATH. Root's default PATH doesn't include ~/.local/bin, so the
+# installer bails with "uv installed but not found on PATH". Prepend it.
+export PATH="$HOME/.local/bin:$PATH"
 if ! curl -fsSL "$HERMES_INSTALLER_URL" | bash -s -- --skip-setup 2>&1 | tee -a "$LOGFILE"; then
     fail "official Hermes installer failed; see $LOGFILE"
 fi
-log "installer: official installer finished"
+# Verify the installer actually produced a working hermes binary
+if [ ! -x /root/.local/bin/hermes ]; then
+    fail "hermes binary missing at /root/.local/bin/hermes after installer run"
+fi
+log "installer: official installer finished (hermes binary present)"
 
 # ---------------------------------------------------------------------------
 # 5. README
