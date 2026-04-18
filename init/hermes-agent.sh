@@ -10,15 +10,10 @@ SERVICE_PASSWORD="{$service.password}"
 SERVICE_DOMAIN="{$service.domain}"
 CONFIG_PASSWORD="{$config.password}"
 CONFIG_USER="{$config.ciuser}"
-CLIENT_FIRSTNAME="{$client.firstname}"
-CLIENT_LASTNAME="{$client.lastname}"
-CLIENT_EMAIL="{$client.email}"
 
 LLM_PROVIDER="{$params.customfields.llm_provider}"
 LLM_API_KEY="{$params.customfields.llm_api_key}"
 TELEGRAM_BOT_TOKEN="{$params.customfields.telegram_bot_token}"
-TERMINAL_BACKEND="{$params.customfields.terminal_backend}"
-AGENT_NAME="{$params.customfields.agent_name}"
 SSH_KEYS="{$params.customfields.sshkeys}"
 
 {literal}
@@ -27,11 +22,13 @@ exec > >(tee -a /var/log/hermes-init.log) 2>&1
 
 echo "[$(date)] Hermes Agent bootstrap starting"
 
+# Hostname from service domain (leak guard: no $ in literal placeholder)
 if [ -n "$SERVICE_DOMAIN" ] && [ "$SERVICE_DOMAIN" != "{service.domain}" ]; then
     hostnamectl set-hostname "$SERVICE_DOMAIN"
     echo "[$(date)] Hostname set to $SERVICE_DOMAIN"
 fi
 
+# Root password: prefer App Template password, fall back to service password
 PASSWORD_TO_USE=""
 if [ -n "$CONFIG_PASSWORD" ] && [ "$CONFIG_PASSWORD" != "{config.password}" ]; then
     PASSWORD_TO_USE="$CONFIG_PASSWORD"
@@ -43,6 +40,7 @@ if [ -n "$PASSWORD_TO_USE" ]; then
     echo "[$(date)] Root password set"
 fi
 
+# Optional additional sudo user
 if [ -n "$CONFIG_USER" ] && [ "$CONFIG_USER" != "{config.ciuser}" ] && [ "$CONFIG_USER" != "root" ]; then
     if [ -n "$PASSWORD_TO_USE" ]; then
         useradd -m -s /bin/bash "$CONFIG_USER" 2>/dev/null || true
@@ -52,14 +50,15 @@ if [ -n "$CONFIG_USER" ] && [ "$CONFIG_USER" != "{config.ciuser}" ] && [ "$CONFI
     fi
 fi
 
+# SSH key installation (root + optional user)
 if [ -n "$SSH_KEYS" ] && [ "$SSH_KEYS" != "{params.customfields.sshkeys}" ]; then
     mkdir -p /root/.ssh
-    echo "$SSH_KEYS" >> /root/.ssh/authorized_keys
+    printf '%s\n' "$SSH_KEYS" >> /root/.ssh/authorized_keys
     chmod 700 /root/.ssh
     chmod 600 /root/.ssh/authorized_keys
     if [ -n "$CONFIG_USER" ] && id "$CONFIG_USER" >/dev/null 2>&1; then
         mkdir -p "/home/$CONFIG_USER/.ssh"
-        echo "$SSH_KEYS" >> "/home/$CONFIG_USER/.ssh/authorized_keys"
+        printf '%s\n' "$SSH_KEYS" >> "/home/$CONFIG_USER/.ssh/authorized_keys"
         chmod 700 "/home/$CONFIG_USER/.ssh"
         chmod 600 "/home/$CONFIG_USER/.ssh/authorized_keys"
         chown -R "$CONFIG_USER:$CONFIG_USER" "/home/$CONFIG_USER/.ssh"
@@ -67,22 +66,18 @@ if [ -n "$SSH_KEYS" ] && [ "$SSH_KEYS" != "{params.customfields.sshkeys}" ]; the
     echo "[$(date)] SSH keys installed"
 fi
 
+# Normalize leaked Smarty placeholders to empty (Smarty strips $ when the
+# variable is undefined, leaving the literal "{path}" behind)
 [ "$LLM_PROVIDER"       = "{params.customfields.llm_provider}" ]       && LLM_PROVIDER=""
 [ "$LLM_API_KEY"        = "{params.customfields.llm_api_key}" ]        && LLM_API_KEY=""
 [ "$TELEGRAM_BOT_TOKEN" = "{params.customfields.telegram_bot_token}" ] && TELEGRAM_BOT_TOKEN=""
-[ "$TERMINAL_BACKEND"   = "{params.customfields.terminal_backend}" ]   && TERMINAL_BACKEND=""
-[ "$AGENT_NAME"         = "{params.customfields.agent_name}" ]         && AGENT_NAME=""
 
+# Write install config for the main wrapper (consumed then shredded)
 umask 077
 cat > /root/.hermes-install-config <<EOF
 LLM_PROVIDER=$(printf '%q' "$LLM_PROVIDER")
 LLM_API_KEY=$(printf '%q' "$LLM_API_KEY")
 TELEGRAM_BOT_TOKEN=$(printf '%q' "$TELEGRAM_BOT_TOKEN")
-TERMINAL_BACKEND=$(printf '%q' "$TERMINAL_BACKEND")
-AGENT_NAME=$(printf '%q' "$AGENT_NAME")
-CLIENT_FIRSTNAME=$(printf '%q' "$CLIENT_FIRSTNAME")
-CLIENT_LASTNAME=$(printf '%q' "$CLIENT_LASTNAME")
-CLIENT_EMAIL=$(printf '%q' "$CLIENT_EMAIL")
 EOF
 chmod 600 /root/.hermes-install-config
 
