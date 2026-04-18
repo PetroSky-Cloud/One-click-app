@@ -40,12 +40,12 @@ case "${LLM_PROVIDER,,}" in
     *)            LLM_PROVIDER= ;;
 esac
 
-echo "==> Hermes Agent install starting at $(date -u +%FT%TZ)"
+echo "==> Hermes Agent install starting"
 
 # ---------------------------------------------------------------------------
 # 1. Firewall + brute-force protection (Hermes does not do this)
 # ---------------------------------------------------------------------------
-echo "==> UFW + fail2ban"
+echo "==> Configuring firewall (UFW + fail2ban)"
 export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
 apt-get -qqy install ufw fail2ban curl >/dev/null
@@ -65,7 +65,7 @@ systemctl enable --now fail2ban >/dev/null
 # 2. Swap (Hermes's pip install peaks near 1 GB RAM; small VPS need headroom)
 # ---------------------------------------------------------------------------
 if [ ! -f /swapfile ]; then
-    echo "==> 2 GB swap file"
+    echo "==> Adding 2 GB swap file"
     fallocate -l 2G /swapfile
     chmod 600 /swapfile
     mkswap /swapfile >/dev/null
@@ -80,7 +80,7 @@ fi
 mkdir -p /root/.hermes
 chmod 700 /root/.hermes
 if [ ! -s /root/.hermes/.env ]; then
-    echo "==> seeding /root/.hermes/.env from WHMCS fields"
+    echo "==> Writing initial configuration (/root/.hermes/.env)"
     {
         case "$LLM_PROVIDER" in
             openrouter) [ -n "$LLM_API_KEY" ] && echo "OPENROUTER_API_KEY=$LLM_API_KEY" ;;
@@ -95,7 +95,7 @@ fi
 # ---------------------------------------------------------------------------
 # 4. Hand off to the official Hermes installer
 # ---------------------------------------------------------------------------
-echo "==> running official Hermes installer (takes 3-5 minutes)"
+echo "==> Installing Hermes Agent (this takes about 3-5 minutes)"
 curl -fsSL "$HERMES_INSTALLER_URL" | bash -s -- --skip-setup
 if [ ! -x "$HOME/.local/bin/hermes" ]; then
     echo "ERROR: Hermes binary not found after installer run." >&2
