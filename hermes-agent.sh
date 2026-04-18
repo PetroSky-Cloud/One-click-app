@@ -7,6 +7,22 @@
 # Spec: docs/superpowers/specs/2026-04-18-hermes-agent-one-click-design.md
 #
 
+# Guard: /etc/profile.d/install.sh is sourced by EVERY login shell on this
+# system, including the one `sudo -iu hermes` spawns later in this script.
+# Without this guard, the hermes login shell re-sources us, fails at the
+# root-only `touch /var/log/...`, and the whole sudo call exits non-zero
+# before the Hermes installer ever runs.
+if [ "$(id -u)" -ne 0 ]; then
+    # `return` succeeds when sourced (profile.d); falls through to `exit` when executed
+    # shellcheck disable=SC2317
+    return 0 2>/dev/null || exit 0
+fi
+
+# Remove ourselves from profile.d immediately so sub-shells (hermes login
+# shell during the official installer) don't re-source us even if the guard
+# above were bypassed somehow. We still do the defensive cleanup at the end.
+rm -f /etc/profile.d/install.sh 2>/dev/null || true
+
 set -euo pipefail
 
 RED='\e[31m'
