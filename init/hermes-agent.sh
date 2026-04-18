@@ -8,7 +8,20 @@ apt-get install -y wget bash curl net-tools
 # a sourced script's `set -euo pipefail` leaks into the interactive shell
 # (causing later errors like "debian_chroot: unbound variable"). Instead, we
 # write a tiny stub to profile.d that runs the wrapper as a subprocess.
-wget -O /root/hermes-agent.sh -q https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/hermes-agent.sh
+#
+# Retry up to 3x with backoff: at early cloud-init boot the network or
+# github.com DNS can be flaky, and wget -q hides the failure (leaving a
+# 0-byte file that then "runs" as a no-op — the most confusing failure mode).
+WRAPPER_URL=https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/hermes-agent.sh
+for attempt in 1 2 3; do
+    wget -O /root/hermes-agent.sh "$WRAPPER_URL" && [ -s /root/hermes-agent.sh ] && break
+    echo "[init] wget attempt $attempt failed; retrying in 5s"
+    sleep 5
+done
+if [ ! -s /root/hermes-agent.sh ]; then
+    echo "[init] FATAL: could not download $WRAPPER_URL" >&2
+    exit 1
+fi
 chmod +x /root/hermes-agent.sh
 
 cat > /etc/profile.d/install.sh <<'STUB'
