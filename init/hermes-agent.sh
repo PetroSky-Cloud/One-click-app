@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Idempotency gate: cloud-init re-runs user-data on every reboot. Skip the
+# whole bootstrap if we've already completed a successful install. Without
+# this, each reboot re-downloads the wrapper, re-writes the profile.d stub,
+# and re-writes /root/.hermes-install-config (overwriting any customer edits
+# to secrets on the next SSH login).
+if [ -f /var/lib/hermes-one-click.done ]; then
+    exit 0
+fi
+
 apt-get update
 apt-get install -y wget bash curl net-tools
 

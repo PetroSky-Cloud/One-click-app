@@ -25,6 +25,20 @@ LOGFILE=/var/log/hermes-install.log
 CONFIG_FILE=/root/.hermes-install-config
 HERMES_INSTALLER_URL=https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh
 ENV_FILE=/root/.hermes/.env
+INSTALL_DONE_MARKER=/var/lib/hermes-one-click.done
+
+# ---------------------------------------------------------------------------
+# Idempotency gate: if we already completed a full install on this VM, exit
+# immediately. Protects against cloud-init re-running our bootstrap on every
+# reboot and wiping customer-edited secrets/config.
+# ---------------------------------------------------------------------------
+if [ -f "$INSTALL_DONE_MARKER" ]; then
+    echo "[$(date -u +%FT%TZ)] hermes-agent: already installed (marker at $INSTALL_DONE_MARKER), nothing to do." \
+        | tee -a "$LOGFILE"
+    # Make sure the profile.d stub is gone so we don't loop
+    rm -f /etc/profile.d/install.sh
+    exit 0
+fi
 
 install -d -m 0755 /var/log
 touch "$LOGFILE"
@@ -110,52 +124,41 @@ fi
 log "swap: done"
 
 # ---------------------------------------------------------------------------
-# 3. Pre-seed /root/.hermes/.env with WHMCS-provided secrets
+# 3. Pre-seed /root/.hermes/.env with WHMCS-provided secrets — only if the
+# file is missing or empty. NEVER overwrite an existing .env: the customer
+# may have added or edited tokens since provisioning and losing those on a
+# reboot-triggered re-install would be destructive.
 # ---------------------------------------------------------------------------
-log "env: pre-seeding /root/.hermes/.env from WHMCS fields"
 install -d -m 0700 /root/.hermes
-{
-    printf '# Hermes Agent environment (pre-seeded from WHMCS order)\n\n'
-    case "$LLM_PROVIDER" in
-        openrouter) [ -n "$LLM_API_KEY" ] && printf 'OPENROUTER_API_KEY=%s\n' "$LLM_API_KEY" ;;
-        openai)     [ -n "$LLM_API_KEY" ] && printf 'OPENAI_API_KEY=%s\n'     "$LLM_API_KEY" ;;
-        anthropic)  [ -n "$LLM_API_KEY" ] && printf 'ANTHROPIC_API_KEY=%s\n'  "$LLM_API_KEY" ;;
-    esac
-    [ -n "$TELEGRAM_BOT_TOKEN" ] && printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN"
-} > "$ENV_FILE"
-chmod 600 "$ENV_FILE"
+if [ ! -s "$ENV_FILE" ]; then
+    log "env: pre-seeding $ENV_FILE from WHMCS fields"
+    {
+        printf '# Hermes Agent environment (pre-seeded from WHMCS order)\n\n'
+        case "$LLM_PROVIDER" in
+            openrouter) [ -n "$LLM_API_KEY" ] && printf 'OPENROUTER_API_KEY=%s\n' "$LLM_API_KEY" ;;
+            openai)     [ -n "$LLM_API_KEY" ] && printf 'OPENAI_API_KEY=%s\n'     "$LLM_API_KEY" ;;
+            anthropic)  [ -n "$LLM_API_KEY" ] && printf 'ANTHROPIC_API_KEY=%s\n'  "$LLM_API_KEY" ;;
+        esac
+        [ -n "$TELEGRAM_BOT_TOKEN" ] && printf 'TELEGRAM_BOT_TOKEN=%s\n' "$TELEGRAM_BOT_TOKEN"
+    } > "$ENV_FILE"
+    chmod 600 "$ENV_FILE"
+else
+    log "env: $ENV_FILE already exists, preserving customer edits"
+fi
 
 # ---------------------------------------------------------------------------
 # 4. Hand off to the OFFICIAL installer
 # ---------------------------------------------------------------------------
 log "installer: downloading and executing $HERMES_INSTALLER_URL (takes 3-5 min)"
-# Hermes's installer puts uv in ~/.local/bin then immediately expects to find
-# uv on PATH. Root's default PATH doesn't include ~/.local/bin, so the
-# installer bails with "uv installed but not found on PATH". Prepend it.
-export PATH="$HOME/.local/bin:$PATH"
+# With HOME exported correctly, the official installer handles everything:
+# installs uv to ~/.local/bin, finds it via explicit path, adds ~/.local/bin
+# to .bashrc/.profile itself. We just run it and trust it.
 if ! curl -fsSL "$HERMES_INSTALLER_URL" | bash -s -- --skip-setup 2>&1 | tee -a "$LOGFILE"; then
     fail "official Hermes installer failed; see $LOGFILE"
 fi
-# Verify the installer actually produced a working hermes binary
-if [ ! -x /root/.local/bin/hermes ]; then
-    fail "hermes binary missing at /root/.local/bin/hermes after installer run"
+if [ ! -x "$HOME/.local/bin/hermes" ]; then
+    fail "hermes binary missing at $HOME/.local/bin/hermes after installer run"
 fi
-
-# Our pre-export of PATH tricked the Hermes installer into thinking PATH was
-# already set in the user's shell config, so it skipped adding the PATH line
-# to .bashrc. Add it ourselves if missing (check both .bashrc and .profile).
-for shellrc in "$HOME/.bashrc" "$HOME/.profile"; do
-    [ -f "$shellrc" ] || continue
-    if ! grep -qE '^[^#]*PATH=.*\.local/bin' "$shellrc"; then
-        {
-            printf '\n# Hermes Agent - ensure ~/.local/bin is on PATH\n'
-            # shellcheck disable=SC2016  # we want literal $HOME in the file
-            printf 'export PATH="$HOME/.local/bin:$PATH"\n'
-        } >> "$shellrc"
-        log "path: added ~/.local/bin to $shellrc"
-    fi
-done
-
 log "installer: official installer finished (hermes binary present)"
 
 # ---------------------------------------------------------------------------
@@ -303,6 +306,10 @@ chmod 0644 /root/README.txt
 if [ -f "$CONFIG_FILE" ]; then
     shred -u "$CONFIG_FILE" 2>/dev/null || rm -f "$CONFIG_FILE"
 fi
+
+# Mark install as complete so cloud-init re-runs on reboot skip the body
+install -d -m 0755 "$(dirname "$INSTALL_DONE_MARKER")"
+date -u +%FT%TZ > "$INSTALL_DONE_MARKER"
 
 log "=== Install complete. See /root/README.txt ==="
 
