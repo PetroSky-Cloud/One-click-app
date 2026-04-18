@@ -247,5 +247,18 @@ printf '========================================================================
 printf '  Server IP:   %s\n'  "${MYIP:-unknown}"
 printf '  README:      /root/README.txt\n'
 printf '  Install log: %s\n'  "$LOGFILE"
-printf '  Next:        source ~/.bashrc && hermes\n\n'
+printf '\n'
 printf '========================================================================\n\n'
+
+# If running interactively (SSH session), launch the Hermes setup wizard so
+# the customer can finish configuration (LLM provider, messaging platforms)
+# without typing another command. In cloud-init (no TTY), skip and let them
+# run it on first SSH login instead.
+if [ -t 0 ] && [ -t 1 ] && [ -x /root/.local/bin/hermes ]; then
+    printf '>>> Launching "hermes setup" in 3 seconds (Ctrl-C to skip)...\n'
+    printf '    You can re-run it any time with: hermes setup\n\n'
+    sleep 3
+    /root/.local/bin/hermes setup || true
+else
+    printf 'Next: source ~/.bashrc && hermes setup\n\n'
+fi
