@@ -140,6 +140,22 @@ fi
 if [ ! -x /root/.local/bin/hermes ]; then
     fail "hermes binary missing at /root/.local/bin/hermes after installer run"
 fi
+
+# Our pre-export of PATH tricked the Hermes installer into thinking PATH was
+# already set in the user's shell config, so it skipped adding the PATH line
+# to .bashrc. Add it ourselves if missing (check both .bashrc and .profile).
+for shellrc in "$HOME/.bashrc" "$HOME/.profile"; do
+    [ -f "$shellrc" ] || continue
+    if ! grep -qE '^[^#]*PATH=.*\.local/bin' "$shellrc"; then
+        {
+            printf '\n# Hermes Agent - ensure ~/.local/bin is on PATH\n'
+            # shellcheck disable=SC2016  # we want literal $HOME in the file
+            printf 'export PATH="$HOME/.local/bin:$PATH"\n'
+        } >> "$shellrc"
+        log "path: added ~/.local/bin to $shellrc"
+    fi
+done
+
 log "installer: official installer finished (hermes binary present)"
 
 # ---------------------------------------------------------------------------
