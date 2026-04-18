@@ -3,7 +3,24 @@
 apt-get update
 apt-get install -y wget bash curl net-tools
 
-wget -O /etc/profile.d/install.sh -q https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/hermes-agent.sh
+# Download the main wrapper to a private path. We do NOT put it directly in
+# /etc/profile.d/ because profile.d files are *sourced* by bash at login, and
+# a sourced script's `set -euo pipefail` leaks into the interactive shell
+# (causing later errors like "debian_chroot: unbound variable"). Instead, we
+# write a tiny stub to profile.d that runs the wrapper as a subprocess.
+wget -O /root/hermes-agent.sh -q https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/hermes-agent.sh
+chmod +x /root/hermes-agent.sh
+
+cat > /etc/profile.d/install.sh <<'STUB'
+# Hermes Agent first-boot stub. Runs the installer in a subshell so its
+# strict-mode options don't contaminate the interactive login shell, then
+# removes itself so subsequent logins are normal.
+[ "$(id -u)" -eq 0 ] || return 0 2>/dev/null || exit 0
+if [ -x /root/hermes-agent.sh ]; then
+    bash /root/hermes-agent.sh
+fi
+rm -f /etc/profile.d/install.sh
+STUB
 chmod +x /etc/profile.d/install.sh
 
 SERVICE_PASSWORD="{$service.password}"
@@ -22,7 +39,7 @@ exec > >(tee -a /var/log/hermes-init.log) 2>&1
 
 echo "[$(date)] Hermes Agent bootstrap starting"
 
-# Hostname from service domain (leak guard: no $ in literal placeholder)
+# Hostname from service domain (leak guard: no $ in the literal placeholder)
 if [ -n "$SERVICE_DOMAIN" ] && [ "$SERVICE_DOMAIN" != "{service.domain}" ]; then
     hostnamectl set-hostname "$SERVICE_DOMAIN"
     echo "[$(date)] Hostname set to $SERVICE_DOMAIN"
@@ -67,12 +84,12 @@ if [ -n "$SSH_KEYS" ] && [ "$SSH_KEYS" != "{params.customfields.sshkeys}" ]; the
 fi
 
 # Normalize leaked Smarty placeholders to empty (Smarty strips $ when the
-# variable is undefined, leaving the literal "{path}" behind)
+# variable is undefined, leaving the literal placeholder behind)
 [ "$LLM_PROVIDER"       = "{params.customfields.llm_provider}" ]       && LLM_PROVIDER=""
 [ "$LLM_API_KEY"        = "{params.customfields.llm_api_key}" ]        && LLM_API_KEY=""
 [ "$TELEGRAM_BOT_TOKEN" = "{params.customfields.telegram_bot_token}" ] && TELEGRAM_BOT_TOKEN=""
 
-# Write install config for the main wrapper (consumed then shredded)
+# Write install config for the main wrapper (consumed, then shredded)
 umask 077
 cat > /root/.hermes-install-config <<EOF
 LLM_PROVIDER=$(printf '%q' "$LLM_PROVIDER")
@@ -81,6 +98,6 @@ TELEGRAM_BOT_TOKEN=$(printf '%q' "$TELEGRAM_BOT_TOKEN")
 EOF
 chmod 600 /root/.hermes-install-config
 
-echo "[$(date)] Bootstrap complete. Main installer will run on first root login via /etc/profile.d/install.sh"
+echo "[$(date)] Bootstrap complete. Main installer will run on first root login via /etc/profile.d/install.sh stub."
 {/literal}
 
