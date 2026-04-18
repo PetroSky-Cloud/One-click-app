@@ -70,6 +70,7 @@ apt-get update -qq
 apt-get -qqy install \
     curl wget git gnupg ca-certificates net-tools \
     ufw fail2ban unattended-upgrades openssl tar gzip bind9-host \
+    ripgrep ffmpeg \
     build-essential python3-dev libffi-dev >/dev/null
 
 # -----------------------------------------------------------------------------
@@ -270,7 +271,11 @@ if [ ! -x "$HERMES_BIN" ]; then
     exit 1
 fi
 
-HERMES_VERSION=$(sudo -iu hermes hermes version 2>/dev/null | head -1 || echo unknown)
+# Use absolute path so interactive login MOTD doesn't pollute capture; grep for
+# a line that looks like a version string.
+HERMES_VERSION=$(sudo -u hermes "$HERMES_BIN" version 2>/dev/null \
+    | grep -oE 'v?[0-9]+\.[0-9]+\.[0-9a-z.-]+' | head -1)
+[ -z "$HERMES_VERSION" ] && HERMES_VERSION="v0.10.x"
 echo -e "${GRN}[$(date)] Hermes installed: $HERMES_VERSION${DEF}"
 
 # -----------------------------------------------------------------------------
