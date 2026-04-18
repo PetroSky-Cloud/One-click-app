@@ -13,6 +13,14 @@
 
 set -e
 
+# Cloud-init / qemu-guest-agent sometimes spawn scripts with HOME unset.
+# Both our wrapper AND the official Hermes installer use $HOME/.local/bin
+# for uv (fast Python package manager); without HOME set, uv detection
+# silently fails and the installer exits with "uv installed but not found
+# on PATH". Fix by defaulting HOME for the running user.
+export HOME="${HOME:-$(getent passwd "$(id -un)" | cut -d: -f6)}"
+[ -z "$HOME" ] && export HOME=/root
+
 LOGFILE=/var/log/hermes-install.log
 CONFIG_FILE=/root/.hermes-install-config
 HERMES_INSTALLER_URL=https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scripts/install.sh
