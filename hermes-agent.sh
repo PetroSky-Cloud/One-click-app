@@ -285,7 +285,7 @@ find_hermes_npx() {
 }
 
 ensure_playwright_chromium() {
-    local install_dir npx_cmd
+    local install_dir npx_cmd npx_dir
     install_dir="${HERMES_HOME}/hermes-agent"
 
     [ -d "$install_dir" ] || return 0
@@ -294,6 +294,7 @@ ensure_playwright_chromium() {
         log "WARNING: npx not found; skipping Playwright Chromium setup"
         return 0
     fi
+    npx_dir="$(dirname "$npx_cmd")"
 
     touch "$PLAYWRIGHT_LOG"
     chmod 600 "$PLAYWRIGHT_LOG" 2>/dev/null || true
@@ -301,17 +302,24 @@ ensure_playwright_chromium() {
     log "Ensuring Playwright Chromium system dependencies"
     if ! (
         cd "$install_dir"
-        DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a "$npx_cmd" playwright install-deps chromium
+        env \
+            PATH="${npx_dir}:${HERMES_HOME}/node/bin:${HERMES_HOME_DIR}/.local/bin:${PATH}" \
+            DEBIAN_FRONTEND=noninteractive \
+            NEEDRESTART_MODE=a \
+            "$npx_cmd" playwright install-deps chromium
     ) >> "$PLAYWRIGHT_LOG" 2>&1; then
         log "WARNING: Playwright system dependency setup failed; see ${PLAYWRIGHT_LOG}"
         return 0
     fi
+    log "Playwright Chromium system dependencies ready"
 
     log "Ensuring Playwright Chromium browser install"
     # shellcheck disable=SC2016
     if ! run_as_hermes bash -c 'cd "$1"; npx playwright install chromium' bash "$install_dir" >> "$PLAYWRIGHT_LOG" 2>&1; then
         log "WARNING: Playwright Chromium browser setup failed; see ${PLAYWRIGHT_LOG}"
+        return 0
     fi
+    log "Playwright Chromium browser ready"
 }
 
 sanitize_env_value() {
