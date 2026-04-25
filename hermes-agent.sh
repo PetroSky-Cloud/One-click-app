@@ -82,11 +82,12 @@ runtime_group() {
 }
 
 run_as_hermes() {
+    # shellcheck disable=SC2016
     runuser -u "$HERMES_USER" -- env \
         HOME="$HERMES_HOME_DIR" \
         HERMES_HOME="$HERMES_HOME" \
         PATH="${HERMES_HOME_DIR}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
-        "$@"
+        bash -c 'cd "$1"; shift; exec "$@"' bash "$HERMES_HOME_DIR" "$@"
 }
 
 validate_runtime_user() {
