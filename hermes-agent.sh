@@ -33,6 +33,7 @@ LOG_FILE="${LOG_FILE:-/var/log/hermes-install.log}"
 DOCTOR_LOG="${DOCTOR_LOG:-/var/log/hermes-doctor.log}"
 UPDATE_LOG="${UPDATE_LOG:-/var/log/hermes-update.log}"
 BACKUP_LOG="${BACKUP_LOG:-/var/log/hermes-backup.log}"
+PLAYWRIGHT_LOG="${PLAYWRIGHT_LOG:-/var/log/hermes-playwright.log}"
 
 touch "$LOG_FILE"
 chmod 600 "$LOG_FILE" 2>/dev/null || true
@@ -86,7 +87,7 @@ run_as_hermes() {
     runuser -u "$HERMES_USER" -- env \
         HOME="$HERMES_HOME_DIR" \
         HERMES_HOME="$HERMES_HOME" \
-        PATH="${HERMES_HOME_DIR}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
+        PATH="${HERMES_HOME}/node/bin:${HERMES_HOME_DIR}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin" \
         bash -c 'cd "$1"; shift; exec "$@"' bash "$HERMES_HOME_DIR" "$@"
 }
 
@@ -120,7 +121,8 @@ install_base_packages() {
     apt-get update -qq
     apt-get -qqy install \
         bash ca-certificates curl wget git net-tools \
-        ufw fail2ban unattended-upgrades ripgrep ffmpeg >/dev/null
+        ufw fail2ban unattended-upgrades ripgrep ffmpeg \
+        build-essential python3-dev libffi-dev >/dev/null
 
     cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APT'
 APT::Periodic::Update-Package-Lists "1";
@@ -269,6 +271,49 @@ install_hermes_agent() {
     fi
 }
 
+find_hermes_npx() {
+    local candidate
+
+    for candidate in "${HERMES_HOME}/node/bin/npx" "${HERMES_HOME_DIR}/.local/bin/npx"; do
+        if [ -x "$candidate" ]; then
+            printf '%s\n' "$candidate"
+            return 0
+        fi
+    done
+
+    command -v npx
+}
+
+ensure_playwright_chromium() {
+    local install_dir npx_cmd
+    install_dir="${HERMES_HOME}/hermes-agent"
+
+    [ -d "$install_dir" ] || return 0
+
+    if ! npx_cmd="$(find_hermes_npx)"; then
+        log "WARNING: npx not found; skipping Playwright Chromium setup"
+        return 0
+    fi
+
+    touch "$PLAYWRIGHT_LOG"
+    chmod 600 "$PLAYWRIGHT_LOG" 2>/dev/null || true
+
+    log "Ensuring Playwright Chromium system dependencies"
+    if ! (
+        cd "$install_dir"
+        DEBIAN_FRONTEND=noninteractive NEEDRESTART_MODE=a "$npx_cmd" playwright install-deps chromium
+    ) >> "$PLAYWRIGHT_LOG" 2>&1; then
+        log "WARNING: Playwright system dependency setup failed; see ${PLAYWRIGHT_LOG}"
+        return 0
+    fi
+
+    log "Ensuring Playwright Chromium browser install"
+    # shellcheck disable=SC2016
+    if ! run_as_hermes bash -c 'cd "$1"; npx playwright install chromium' bash "$install_dir" >> "$PLAYWRIGHT_LOG" 2>&1; then
+        log "WARNING: Playwright Chromium browser setup failed; see ${PLAYWRIGHT_LOG}"
+    fi
+}
+
 sanitize_env_value() {
     printf '%s' "$1" | tr -d '\r\n'
 }
@@ -364,12 +409,21 @@ set -e
 HERMES_USER="${HERMES_USER}"
 HERMES_HOME_DIR="${HERMES_HOME_DIR}"
 HERMES_HOME="${HERMES_HOME}"
+HERMES_WORKSPACE="${HERMES_WORKSPACE}"
 HERMES_BIN="${HERMES_BIN}"
-HERMES_PATH="${HERMES_HOME_DIR}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+HERMES_PATH="${HERMES_HOME}/node/bin:${HERMES_HOME_DIR}/.local/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 if [ ! -x "\$HERMES_BIN" ]; then
     echo "Hermes binary not found: \$HERMES_BIN" >&2
     exit 127
+fi
+
+if [ ! -d "\$HERMES_WORKSPACE" ]; then
+    if [ "\$(id -u)" -eq 0 ]; then
+        install -d -o "\$HERMES_USER" -g "\$(id -gn "\$HERMES_USER")" -m 700 "\$HERMES_WORKSPACE"
+    elif [ "\$(id -un)" = "\$HERMES_USER" ]; then
+        mkdir -p "\$HERMES_WORKSPACE"
+    fi
 fi
 
 needs_root=false
@@ -383,15 +437,18 @@ if [ "\${1:-}" = "gateway" ]; then
 fi
 
 if [ "\$(id -u)" -eq 0 ] && [ "\$needs_root" = true ]; then
+    cd "\$HERMES_WORKSPACE"
     exec env HOME="\$HERMES_HOME_DIR" HERMES_HOME="\$HERMES_HOME" PATH="\$HERMES_PATH:\$PATH" "\$HERMES_BIN" "\$@"
 fi
 
 if [ "\$(id -un)" = "\$HERMES_USER" ]; then
+    cd "\$HERMES_WORKSPACE"
     exec env HOME="\$HERMES_HOME_DIR" HERMES_HOME="\$HERMES_HOME" PATH="\$HERMES_PATH:\$PATH" "\$HERMES_BIN" "\$@"
 fi
 
 if [ "\$(id -u)" -eq 0 ]; then
-    exec runuser -u "\$HERMES_USER" -- env HOME="\$HERMES_HOME_DIR" HERMES_HOME="\$HERMES_HOME" PATH="\$HERMES_PATH:\$PATH" "\$HERMES_BIN" "\$@"
+    exec runuser -u "\$HERMES_USER" -- env HOME="\$HERMES_HOME_DIR" HERMES_HOME="\$HERMES_HOME" PATH="\$HERMES_PATH:\$PATH" \\
+        bash -c 'cd "\$1"; shift; exec "\$@"' bash "\$HERMES_WORKSPACE" "\$HERMES_BIN" "\$@"
 fi
 
 echo "Hermes is installed for user '\$HERMES_USER'. Run this command as root, or switch to that user." >&2
@@ -551,12 +608,6 @@ cleanup_bootstrap() {
 }
 
 main() {
-    if [ -f "$DONE_MARKER" ]; then
-        rm -f /etc/profile.d/install.sh
-        log "Hermes already installed ($(cat "$DONE_MARKER")), skipping."
-        exit 0
-    fi
-
     export HOME="${HOME:-/root}"
 
     if [ -f "$CONFIG_FILE" ]; then
@@ -564,6 +615,25 @@ main() {
         . "$CONFIG_FILE"
     fi
     normalize_inputs
+
+    if [ -f "$DONE_MARKER" ]; then
+        rm -f /etc/profile.d/install.sh
+        if id "$HERMES_USER" >/dev/null 2>&1; then
+            refresh_runtime_paths
+            install_base_packages
+            install -d -o "$HERMES_USER" -g "$(runtime_group)" -m 700 "$HERMES_WORKSPACE"
+            write_initial_hermes_env
+            write_root_wrapper
+            ensure_playwright_chromium
+            write_cron_jobs
+            write_motd
+            write_readme
+            log "Hermes already installed ($(cat "$DONE_MARKER")); refreshed wrapper and helper files."
+        else
+            log "Hermes already installed marker exists ($(cat "$DONE_MARKER")), skipping."
+        fi
+        exit 0
+    fi
 
     log "Hermes Agent install starting"
     log "Config: provider=${LLM_PROVIDER:-none}, llm_key=$([ -n "$LLM_API_KEY" ] && echo yes || echo no), telegram_token=$([ -n "$TELEGRAM_BOT_TOKEN" ] && echo yes || echo no)"
@@ -574,6 +644,7 @@ main() {
     create_runtime_user
     wait_for_network
     install_hermes_agent
+    ensure_playwright_chromium
     write_initial_hermes_env
     write_root_wrapper
     write_cron_jobs
