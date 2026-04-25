@@ -238,14 +238,24 @@ install_hermes_agent() {
     run_as_hermes git config --global http.lowSpeedTime 60 >/dev/null 2>&1 || true
 
     local attempt
+    local installer_command
     for attempt in 1 2 3; do
         log "Official installer attempt ${attempt}/3"
 
-        # shellcheck disable=SC2016
-        if run_as_hermes timeout 30m bash -c '
-            set -euo pipefail
-            curl -4 -fsSL --retry 5 --retry-delay 5 "$1" | bash -s -- --skip-setup --hermes-home "$2"
-        ' bash "$HERMES_INSTALLER_URL" "$HERMES_HOME"; then
+        installer_command=(
+            timeout 30m
+            bash -c "
+                set -euo pipefail
+                curl -4 -fsSL --retry 5 --retry-delay 5 \"\$1\" | bash -s -- --skip-setup --hermes-home \"\$2\"
+            "
+            bash "$HERMES_INSTALLER_URL" "$HERMES_HOME"
+        )
+
+        if command -v setsid >/dev/null 2>&1; then
+            installer_command=(setsid -w "${installer_command[@]}")
+        fi
+
+        if run_as_hermes "${installer_command[@]}"; then
             break
         fi
 
