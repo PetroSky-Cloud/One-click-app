@@ -120,7 +120,7 @@ install_base_packages() {
     apt-get update -qq
     apt-get -qqy install \
         bash ca-certificates curl wget git net-tools \
-        ufw fail2ban unattended-upgrades ripgrep >/dev/null
+        ufw fail2ban unattended-upgrades ripgrep ffmpeg >/dev/null
 
     cat > /etc/apt/apt.conf.d/20auto-upgrades <<'APT'
 APT::Periodic::Update-Package-Lists "1";
