@@ -1,12 +1,14 @@
 #!/bin/bash
 
-# Idempotency gate: cloud-init re-runs user-data on every reboot. Skip the
-# whole bootstrap if we've already completed a successful install. Without
-# this, each reboot re-downloads the wrapper, re-writes the profile.d stub,
-# and re-writes /root/.hermes-install-config (overwriting any customer edits
-# to secrets on the next SSH login).
+# Idempotency gate: cloud-init can re-run user-data on reboot. Skip bootstrap
+# only when the completed-install marker is backed by a real Hermes install.
+# This avoids a stale marker in a template preventing the first-login trigger.
 if [ -f /var/lib/hermes-one-click.done ]; then
-    exit 0
+    if id hermes >/dev/null 2>&1 && { [ -x /usr/local/bin/hermes ] || [ -x /home/hermes/.local/bin/hermes ]; }; then
+        exit 0
+    fi
+    echo "[init] Stale Hermes done marker found without installed Hermes; continuing bootstrap"
+    rm -f /var/lib/hermes-one-click.done
 fi
 
 apt-get update
@@ -38,10 +40,24 @@ cat > /etc/profile.d/install.sh <<'STUB'
 # strict-mode options don't contaminate the interactive login shell, then
 # removes itself so subsequent logins are normal.
 [ "$(id -u)" -eq 0 ] || return 0 2>/dev/null || exit 0
+
+# Only real interactive root sessions should consume this one-shot trigger.
+# Non-interactive platform checks such as `ssh root@host command` or
+# `bash -lc ...` may source /etc/profile; they must not silently start or
+# consume the installer before the customer enters the VPS.
+case $- in
+    *i*) ;;
+    *) return 0 2>/dev/null || exit 0 ;;
+esac
+[ -t 0 ] || return 0 2>/dev/null || exit 0
+
 if [ -x /root/hermes-agent.sh ]; then
-    bash /root/hermes-agent.sh
+    if bash /root/hermes-agent.sh; then
+        rm -f /etc/profile.d/install.sh
+    else
+        echo "Hermes Agent installer failed. See /var/log/hermes-install.log, then open a new root shell to retry." >&2
+    fi
 fi
-rm -f /etc/profile.d/install.sh
 STUB
 chmod +x /etc/profile.d/install.sh
 
@@ -122,4 +138,3 @@ chmod 600 /root/.hermes-install-config
 
 echo "[$(date)] Bootstrap complete. Main installer will run on first root login via /etc/profile.d/install.sh stub."
 {/literal}
-
