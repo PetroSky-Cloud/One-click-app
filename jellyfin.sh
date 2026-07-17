@@ -59,16 +59,27 @@ echo -e ${BLU} "Creating Jellyfin directories..." ${DEF}
 mkdir -p /opt/jellyfin/{config,cache}
 mkdir -p /media/{movies,tvshows,music}
 
-echo -e ${BLU} "Starting Jellyfin..." ${DEF}
-docker run -d \
-    --name jellyfin \
-    --restart=unless-stopped \
-    -p 8096:8096 \
-    -v /opt/jellyfin/config:/config \
-    -v /opt/jellyfin/cache:/cache \
-    -v /media:/media \
-    --device /dev/dri:/dev/dri \
+DEVICE_ARGS=""
+if [ -e /dev/dri ]; then
+    DEVICE_ARGS="--device /dev/dri:/dev/dri"
+fi
+
+cat > /opt/jellyfin/run.sh << EOF
+#!/bin/bash
+docker run -d \\
+    --name jellyfin \\
+    --restart=unless-stopped \\
+    -p 8096:8096 \\
+    -v /opt/jellyfin/config:/config \\
+    -v /opt/jellyfin/cache:/cache \\
+    -v /media:/media \\
+    ${DEVICE_ARGS} \\
     jellyfin/jellyfin:latest
+EOF
+chmod +x /opt/jellyfin/run.sh
+
+echo -e ${BLU} "Starting Jellyfin..." ${DEF}
+bash /opt/jellyfin/run.sh
 
 if [ -n "$DOMAIN" ]; then
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
@@ -129,10 +140,14 @@ Manage Jellyfin:
   docker ps                      # Check status
   docker logs -f jellyfin        # View logs
   docker restart jellyfin        # Restart
-  docker pull jellyfin/jellyfin:latest && docker stop jellyfin && docker rm jellyfin  # Then re-run install to update
+
+Update Jellyfin:
+  docker pull jellyfin/jellyfin:latest
+  docker stop jellyfin && docker rm jellyfin
+  bash /opt/jellyfin/run.sh
 
 Hardware Transcoding:
-  /dev/dri is mounted for Intel QuickSync/VAAPI
+  /dev/dri is mounted automatically when the host has a GPU
   Enable in Dashboard > Playback > Transcoding
 
 Configuration: /opt/jellyfin/config
