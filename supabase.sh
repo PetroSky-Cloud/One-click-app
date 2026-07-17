@@ -10,7 +10,7 @@ DEF='\e[0m'
 
 echo -e ${GRN} "Installing system utils" ${DEF}
 apt-get update -qq
-apt-get -qqq -y install curl uuid-runtime net-tools bind9-host openssl > /dev/null 2>&1
+apt-get -qqq -y install curl git uuid-runtime net-tools bind9-host openssl > /dev/null 2>&1
 
 MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null)
 
@@ -63,8 +63,9 @@ else
 fi
 
 cd /opt
+rm -rf /opt/supabase
 git clone --depth 1 https://github.com/supabase/supabase
-mkdir supabase-project
+mkdir -p supabase-project
 cp -rf supabase/docker/* supabase-project
 cp supabase/docker/.env.example supabase-project/.env
 cd supabase-project
@@ -81,25 +82,53 @@ SECRET_KEY_BASE=$(openssl rand -hex 64)
 # VAULT_ENC_KEY - MUST be exactly 32 characters for AES-256
 VAULT_ENC_KEY=$(openssl rand -hex 16)
 
-# Update .env with secure credentials
-sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env
-sed -i "s/^DASHBOARD_PASSWORD=.*/DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}/" .env
-sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
-sed -i "s/^SECRET_KEY_BASE=.*/SECRET_KEY_BASE=${SECRET_KEY_BASE}/" .env
-sed -i "s/^VAULT_ENC_KEY=.*/VAULT_ENC_KEY=${VAULT_ENC_KEY}/" .env
+# ANON_KEY / SERVICE_ROLE_KEY must be JWTs signed with the new JWT_SECRET
+# (the .env.example values are demo keys signed with the demo secret)
+b64url() { openssl base64 -A | tr '+/' '-_' | tr -d '='; }
+mint_jwt() {
+    local iat=$(date +%s)
+    local exp=$((iat + 315360000))
+    local hp="$(printf '{"alg":"HS256","typ":"JWT"}' | b64url).$(printf '{"role":"%s","iss":"supabase","iat":%s,"exp":%s}' "$1" "$iat" "$exp" | b64url)"
+    printf '%s.%s' "$hp" "$(printf '%s' "$hp" | openssl dgst -sha256 -hmac "$JWT_SECRET" -binary | b64url)"
+}
+ANON_KEY=$(mint_jwt anon)
+SERVICE_ROLE_KEY=$(mint_jwt service_role)
 
-docker compose pull
-docker compose up -d
-
-sleep 10
-
-MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+if [ -z "$MYIP" ]; then
+    MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+fi
 
 if [ -n "$DOMAIN" ]; then
     ACCESS_URL="https://${DOMAIN}"
 else
     ACCESS_URL="http://${MYIP}:8000"
 fi
+
+# Update .env with secure credentials
+sed -i "s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=${POSTGRES_PASSWORD}/" .env
+sed -i "s/^DASHBOARD_PASSWORD=.*/DASHBOARD_PASSWORD=${DASHBOARD_PASSWORD}/" .env
+sed -i "s/^JWT_SECRET=.*/JWT_SECRET=${JWT_SECRET}/" .env
+sed -i "s/^SECRET_KEY_BASE=.*/SECRET_KEY_BASE=${SECRET_KEY_BASE}/" .env
+sed -i "s/^VAULT_ENC_KEY=.*/VAULT_ENC_KEY=${VAULT_ENC_KEY}/" .env
+sed -i "s|^ANON_KEY=.*|ANON_KEY=${ANON_KEY}|" .env
+sed -i "s|^SERVICE_ROLE_KEY=.*|SERVICE_ROLE_KEY=${SERVICE_ROLE_KEY}|" .env
+sed -i "s|^SITE_URL=.*|SITE_URL=${ACCESS_URL}|" .env
+sed -i "s|^API_EXTERNAL_URL=.*|API_EXTERNAL_URL=${ACCESS_URL}/auth/v1|" .env
+sed -i "s|^SUPABASE_PUBLIC_URL=.*|SUPABASE_PUBLIC_URL=${ACCESS_URL}|" .env
+
+# Behind Caddy TLS, keep Kong reachable only from localhost
+if [ -n "$DOMAIN" ]; then
+    sed -i "s|^KONG_HTTP_PORT=.*|KONG_HTTP_PORT=127.0.0.1:8000|" .env
+fi
+
+docker compose pull
+docker compose up -d
+
+echo -e ${BLU} "Waiting for Supabase services to start..." ${DEF}
+for i in $(seq 1 36); do
+    curl -s -o /dev/null http://127.0.0.1:8000 && break
+    sleep 5
+done
 
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -125,11 +154,12 @@ Dashboard Credentials:
   Username: supabase
   Password: ${DASHBOARD_PASSWORD}
 
-Database:
-  Host: localhost
-  Port: 5432
-  User: postgres
+Database access:
+  cd /opt/supabase-project && docker compose exec db psql -U postgres
   Password: ${POSTGRES_PASSWORD}
+
+API keys for your client apps:
+  See ANON_KEY and SERVICE_ROLE_KEY in /opt/supabase-project/.env
 
 Manage Supabase:
   cd /opt/supabase-project
