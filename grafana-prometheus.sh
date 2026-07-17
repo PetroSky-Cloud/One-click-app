@@ -122,8 +122,8 @@ volumes:
   grafana-data:
 EOFCOMPOSE
 
-# Always expose Prometheus for direct access
-sed -i "s/127.0.0.1:9090:9090/9090:9090/" /opt/monitoring/docker-compose.yml
+# Prometheus has no authentication - keep it bound to 127.0.0.1 in both modes.
+# Grafana reaches it via the compose network (http://prometheus:9090).
 
 if [ "$DOMAIN" = "" ]; then
     echo -e ${GRN} "Installing without TLS - exposing port 3000 directly" ${DEF}
@@ -144,11 +144,10 @@ MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 
 
 if [ -n "$DOMAIN" ]; then
     GRAFANA_URL="https://${DOMAIN}"
-    PROMETHEUS_URL="http://${MYIP}:9090"
 else
     GRAFANA_URL="http://${MYIP}:3000"
-    PROMETHEUS_URL="http://${MYIP}:9090"
 fi
+PROMETHEUS_URL="http://127.0.0.1:9090"
 
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -156,7 +155,7 @@ echo -e "${GRN}             GRAFANA + PROMETHEUS INSTALLATION COMPLETE          
 echo -e "${GRN}========================================================================${DEF}"
 echo
 echo -e "${YEL}  GRAFANA URL:     ${GRN}${GRAFANA_URL}${DEF}"
-echo -e "${YEL}  PROMETHEUS URL:  ${GRN}${PROMETHEUS_URL}${DEF}"
+echo -e "${YEL}  PROMETHEUS URL:  ${GRN}${PROMETHEUS_URL}${DEF} (local only, use SSH tunnel)"
 echo
 echo -e "${BLU}  Grafana Login:${DEF}"
 echo -e "${YEL}    Username: ${GRN}admin${DEF}"
@@ -172,7 +171,10 @@ Grafana + Prometheus Monitoring Stack
 =====================================
 
 Grafana:    ${GRAFANA_URL}
-Prometheus: ${PROMETHEUS_URL}
+Prometheus: ${PROMETHEUS_URL} (local only - no authentication)
+  Access remotely via SSH tunnel:
+    ssh -L 9090:127.0.0.1:9090 root@${MYIP}
+  Then open http://127.0.0.1:9090 in your browser.
 
 Credentials:
   Username: admin

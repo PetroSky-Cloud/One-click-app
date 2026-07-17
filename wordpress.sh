@@ -71,12 +71,13 @@ services:
     container_name: wordpress
     restart: unless-stopped
     ports:
-      - "8080:80"
+      - "127.0.0.1:8080:80"
     environment:
       WORDPRESS_DB_HOST: db
       WORDPRESS_DB_USER: wordpress
       WORDPRESS_DB_PASSWORD: ${MYSQL_PASSWORD}
       WORDPRESS_DB_NAME: wordpress
+      WORDPRESS_CONFIG_EXTRA: if (isset($$_SERVER['HTTP_X_FORWARDED_PROTO']) && $$_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') $$_SERVER['HTTPS'] = 'on';
     volumes:
       - wordpress_data:/var/www/html
     depends_on:
@@ -105,7 +106,11 @@ MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
 MYSQL_PASSWORD=${MYSQL_PASSWORD}
 EOFENV
 
-if [ -n "$DOMAIN" ]; then
+if [ "$DOMAIN" = "" ]; then
+    echo -e ${GRN} "Installing without TLS - exposing port 8080 directly" ${DEF}
+    sed -i "s/127.0.0.1:8080:80/8080:80/" /opt/wordpress/docker-compose.yml
+    sed -i "/WORDPRESS_CONFIG_EXTRA/d" /opt/wordpress/docker-compose.yml
+else
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8080 false
 fi
@@ -131,7 +136,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Complete the WordPress setup wizard in your browser.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and complete the setup wizard.${DEF}"
+echo -e "${RED}  The first visitor completing the wizard owns the site.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -141,6 +147,10 @@ WordPress - Website & Blog Platform
 ====================================
 
 Access: ${ACCESS_URL}
+
+IMPORTANT: WordPress has no pre-set credentials. The first visitor to
+complete the setup wizard becomes the site administrator - do this
+immediately after install.
 
 First-time setup:
   1. Open the URL above

@@ -62,6 +62,11 @@ cd /opt/odoo
 echo -e ${BLU} "Generating secrets..." ${DEF}
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 
+PROXY_MODE_LINE=""
+if [ -n "$DOMAIN" ]; then
+    PROXY_MODE_LINE="proxy_mode = True"
+fi
+
 echo -e ${BLU} "Creating Odoo config..." ${DEF}
 cat > /opt/odoo/config/odoo.conf << EOFCONF
 [options]
@@ -72,6 +77,7 @@ db_host = db
 db_port = 5432
 db_user = odoo
 db_password = ${POSTGRES_PASSWORD}
+${PROXY_MODE_LINE}
 EOFCONF
 
 echo -e ${BLU} "Creating docker-compose.yml..." ${DEF}
@@ -82,7 +88,7 @@ services:
     container_name: odoo
     restart: unless-stopped
     ports:
-      - "8069:8069"
+      - "127.0.0.1:8069:8069"
     environment:
       HOST: db
       USER: odoo
@@ -116,7 +122,10 @@ cat > /opt/odoo/.env << EOFENV
 POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
 EOFENV
 
-if [ -n "$DOMAIN" ]; then
+if [ -z "$DOMAIN" ]; then
+    echo -e ${GRN} "Installing without TLS - exposing port 8069 directly" ${DEF}
+    sed -i "s/127.0.0.1:8069:8069/8069:8069/" /opt/odoo/docker-compose.yml
+else
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 8069 false
 fi
@@ -145,7 +154,9 @@ echo
 echo -e "${YEL}  ACCESS URL:      ${GRN}${ACCESS_URL}${DEF}"
 echo -e "${YEL}  MASTER PASSWORD: ${GRN}${ADMIN_PASSWD}${DEF}"
 echo
-echo -e "${BLU}  Use the master password to create your first database.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the first database.${DEF}"
+echo -e "${RED}  The first visitor reaches the database manager - the master${DEF}"
+echo -e "${RED}  password above is required to create the database and its admin.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -158,7 +169,8 @@ Access: ${ACCESS_URL}
 Master Password: ${ADMIN_PASSWD}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL above IMMEDIATELY - the first visitor reaches the
+     database manager (master password required to create databases)
   2. Click "Manage Databases" or wait for database creation prompt
   3. Enter Master Password above
   4. Create a new database with admin email/password

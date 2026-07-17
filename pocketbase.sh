@@ -56,7 +56,8 @@ echo
 printf "${YEL}Please enter SUPER USER email: ${DEF}"
 read ADMIN_EMAIL
 printf "${YEL}Please enter SUPER USER password: ${DEF}"
-read ADMIN_PASS
+read -s ADMIN_PASS
+echo
 
 echo -e ${BLU} "Installing PocketBase..." ${DEF}
 mkdir -p /opt/pocketbase
@@ -68,9 +69,13 @@ rm -f pocketbase.zip
 
 ./pocketbase superuser upsert "$ADMIN_EMAIL" "$ADMIN_PASS"
 
-SERVE_ARGS="--http=0.0.0.0:8090"
+if [ -n "$DOMAIN" ]; then
+    SERVE_ARGS="--http=127.0.0.1:8090"
+else
+    SERVE_ARGS="--http=0.0.0.0:8090"
+fi
 
-cat > /etc/systemd/system/pocketbase.service << 'EOFSVC'
+cat > /etc/systemd/system/pocketbase.service << EOFSVC
 [Unit]
 Description=PocketBase
 Documentation=https://pocketbase.io/docs
@@ -79,8 +84,8 @@ After=network-online.target
 
 [Service]
 WorkingDirectory=/opt/pocketbase/
-ExecReload=/bin/kill -HUP $MAINPID
-ExecStart=/opt/pocketbase/pocketbase serve --http=0.0.0.0:8090
+ExecReload=/bin/kill -HUP \$MAINPID
+ExecStart=/opt/pocketbase/pocketbase serve ${SERVE_ARGS}
 KillMode=process
 KillSignal=SIGINT
 LimitNOFILE=infinity

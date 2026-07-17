@@ -138,7 +138,9 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and register your account.${DEF}"
+echo -e "${RED}  Registration is open to anyone until you disable signups.${DEF}"
+echo
 echo -e "${BLU}  Install browser extension for easy bookmarking.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -151,10 +153,13 @@ Hoarder - Bookmark Manager with AI
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - the first visitor can register an account
   2. Create your account
-  3. Install browser extension
-  4. Start saving bookmarks
+  3. Set DISABLE_SIGNUPS=true in /opt/hoarder/docker-compose.yml
+     (web service environment block) after creating your account, then:
+     cd /opt/hoarder && docker compose up -d
+  4. Install browser extension
+  5. Start saving bookmarks
 
 Features:
   - AI-powered tagging and categorization

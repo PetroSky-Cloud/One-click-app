@@ -72,7 +72,7 @@ services:
     container_name: calcom
     restart: unless-stopped
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       DATABASE_URL: postgresql://calcom:${POSTGRES_PASSWORD}@db:5432/calcom
       DATABASE_DIRECT_URL: postgresql://calcom:${POSTGRES_PASSWORD}@db:5432/calcom
@@ -132,7 +132,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your account at the URL above.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create your account.${DEF}"
+echo -e "${RED}  Sign-up is open - the first visitor to this URL can register.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -144,7 +145,7 @@ Cal.com - Scheduling Infrastructure
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL above IMMEDIATELY - sign-up is open to the first visitor
   2. Click "Create an account"
   3. Set up your availability
   4. Create event types

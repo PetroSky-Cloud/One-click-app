@@ -89,7 +89,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and register the admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -101,10 +102,12 @@ Plausible Analytics - Privacy-Friendly Web Analytics
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - the first visitor can claim the admin account
   2. Create your admin account
-  3. Add your website
-  4. Install the tracking snippet
+  3. After registering, add DISABLE_REGISTRATION=true to /opt/plausible-ce/.env
+     then restart: cd /opt/plausible-ce && docker compose up -d
+  4. Add your website
+  5. Install the tracking snippet
 
 Manage Plausible:
   cd /opt/plausible-ce

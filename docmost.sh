@@ -131,7 +131,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your workspace and admin account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create your workspace and admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -143,7 +144,7 @@ Docmost - Collaborative Wiki & Documentation
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - the first visitor can claim the workspace and admin account
   2. Create your workspace
   3. Create your admin account
   4. Start creating documentation

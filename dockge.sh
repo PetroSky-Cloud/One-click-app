@@ -106,7 +106,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  Dockge manages Docker - the first visitor gains FULL control of this server.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -118,7 +119,8 @@ Dockge - Docker Compose Manager
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - the first visitor can claim the admin
+     account and gains full control of this server (Dockge manages Docker)
   2. Create your admin account
 
 Features:

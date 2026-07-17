@@ -63,6 +63,12 @@ cd /opt
 mkdir -p uptime-kuma
 cd uptime-kuma
 curl -sO https://raw.githubusercontent.com/louislam/uptime-kuma/master/compose.yaml
+
+if [ -n "$DOMAIN" ]; then
+    # Upstream compose publishes "3001:3001" - bind to localhost since Caddy proxies from 127.0.0.1
+    sed -i 's/"3001:3001"/"127.0.0.1:3001:3001"/' /opt/uptime-kuma/compose.yaml
+fi
+
 docker compose up -d
 
 sleep 15
@@ -82,7 +88,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -94,7 +101,7 @@ Uptime Kuma - Monitoring Tool
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL above IMMEDIATELY - the first visitor becomes admin
   2. Create your admin account
   3. Add monitors for your services
 

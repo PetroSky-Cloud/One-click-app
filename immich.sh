@@ -88,6 +88,8 @@ mkdir -p /opt/immich/postgres
 if [ -n "$DOMAIN" ]; then
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 2283 false
+    # Upstream compose publishes '2283:2283' - bind to localhost since Caddy proxies from 127.0.0.1
+    sed -i "s/'2283:2283'/'127.0.0.1:2283:2283'/" /opt/immich/docker-compose.yml
 fi
 
 echo -e ${BLU} "Starting Immich..." ${DEF}
@@ -111,7 +113,9 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
+echo
 echo -e "${BLU}  Download mobile apps to auto-backup photos.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -124,7 +128,7 @@ Immich - Self-hosted Photo & Video Backup
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL above IMMEDIATELY - the first visitor becomes admin
   2. Create your admin account
   3. Download mobile app (iOS/Android)
   4. Configure backup settings in app

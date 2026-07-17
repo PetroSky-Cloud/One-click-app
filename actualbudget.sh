@@ -101,7 +101,9 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  First user sets the server password via the web UI.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and set the server password.${DEF}"
+echo -e "${RED}  The first visitor to this URL gets to set it.${DEF}"
+echo
 echo -e "${BLU}  Then create a budget to get started.${DEF}"
 echo
 if [ -n "$DOMAIN" ]; then
@@ -118,7 +120,7 @@ Actual Budget
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - the first visitor can set the server password
   2. Set your server password
   3. Create a new budget or import from file
 

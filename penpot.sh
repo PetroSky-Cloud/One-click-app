@@ -62,6 +62,16 @@ read FULLNAME
 
 echo -e ${DEF}
 
+if [ -z "$MYIP" ]; then
+    MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+fi
+
+if [ -n "$DOMAIN" ]; then
+    ACCESS_URL="https://${DOMAIN}"
+else
+    ACCESS_URL="http://${MYIP}:9001"
+fi
+
 if [ -n "$DOMAIN" ]; then
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 9001 false
@@ -74,6 +84,19 @@ mkdir -p /opt/penpot
 cd /opt/penpot
 curl -o docker-compose.yaml https://raw.githubusercontent.com/penpot/penpot/main/docker/images/docker-compose.yaml
 
+echo -e ${BLU} "Configuring Penpot..." ${DEF}
+# Upstream compose ships 'PENPOT_SECRET_KEY: change-this-insecure-key' - replace with a random key
+PENPOT_SECRET_KEY=$(openssl rand -hex 32)
+sed -i "s/change-this-insecure-key/${PENPOT_SECRET_KEY}/" docker-compose.yaml
+
+# Upstream compose defaults 'PENPOT_PUBLIC_URI: http://localhost:9001' - point it at the real URL
+sed -i "s|http://localhost:9001|${ACCESS_URL}|" docker-compose.yaml
+
+if [ -n "$DOMAIN" ]; then
+    # Upstream compose publishes '- 9001:8080' - bind to localhost since Caddy proxies from 127.0.0.1
+    sed -i "s/9001:8080/127.0.0.1:9001:8080/" docker-compose.yaml
+fi
+
 echo -e ${BLU} "Starting Penpot..." ${DEF}
 docker compose -p penpot -f docker-compose.yaml up -d
 
@@ -83,14 +106,6 @@ sleep 60
 echo -e ${BLU} "Creating admin user..." ${DEF}
 docker exec penpot-penpot-backend-1 python3 manage.py create-profile -e "$EMAIL" -p "$PASSWORD" -n "$FULLNAME" 2>/dev/null || true
 
-MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
-
-if [ -n "$DOMAIN" ]; then
-    ACCESS_URL="https://${DOMAIN}"
-else
-    ACCESS_URL="http://${MYIP}:9001"
-fi
-
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo -e "${GRN}                   PENPOT INSTALLATION COMPLETE                         ${DEF}"
@@ -99,6 +114,9 @@ echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
 echo -e "${BLU}  Login with: ${GRN}${EMAIL}${DEF}"
+echo
+echo -e "${RED}  IMPORTANT: Registration is open by default - anyone who can reach${DEF}"
+echo -e "${RED}  this URL can create an account.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -111,6 +129,10 @@ Access: ${ACCESS_URL}
 
 Login:
   Email: ${EMAIL}
+
+IMPORTANT: Registration is open by default - anyone who can reach the URL
+can create an account. To restrict sign-ups, add "disable-registration" to
+PENPOT_FLAGS in /opt/penpot/docker-compose.yaml and restart.
 
 Manage Penpot:
   cd /opt/penpot

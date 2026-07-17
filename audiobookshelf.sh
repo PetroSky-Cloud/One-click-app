@@ -109,7 +109,9 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
+echo
 echo -e "${BLU}  Add audiobooks to: /opt/audiobookshelf/audiobooks${DEF}"
 echo -e "${BLU}  Add podcasts to:   /opt/audiobookshelf/podcasts${DEF}"
 echo
@@ -123,7 +125,7 @@ Audiobookshelf
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - the first visitor can claim the admin account
   2. Create your admin account
   3. Add a library (Audiobooks or Podcasts)
   4. Point it to /audiobooks or /podcasts

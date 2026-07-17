@@ -77,9 +77,12 @@ POSTGRES_NON_ROOT_USER=${POSTGRES_NON_ROOT_USER}
 POSTGRES_NON_ROOT_PASSWORD=${POSTGRES_NON_ROOT_PASSWORD}
 EOF
 
-cat > docker-compose.yml <<- EOF
-version: '3.8'
+N8N_COOKIE_LINE=""
+if [ -z "$DOMAIN" ]; then
+    N8N_COOKIE_LINE="- N8N_SECURE_COOKIE=false"
+fi
 
+cat > docker-compose.yml <<- EOF
 volumes:
   db_storage:
   n8n_storage:
@@ -107,7 +110,7 @@ services:
     image: docker.n8n.io/n8nio/n8n
     restart: always
     environment:
-      - N8N_SECURE_COOKIE=false
+      ${N8N_COOKIE_LINE}
       - DB_TYPE=postgresdb
       - DB_POSTGRESDB_HOST=postgres
       - DB_POSTGRESDB_PORT=5432
@@ -115,9 +118,7 @@ services:
       - DB_POSTGRESDB_USER=${POSTGRES_NON_ROOT_USER}
       - DB_POSTGRESDB_PASSWORD=${POSTGRES_NON_ROOT_PASSWORD}
     ports:
-      - 5678:5678
-    links:
-      - postgres
+      - 127.0.0.1:5678:5678
     volumes:
       - n8n_storage:/home/node/.n8n
     depends_on:
@@ -144,6 +145,11 @@ EOF
 
 chmod 755 init-data.sh
 
+if [ -z "$DOMAIN" ]; then
+    echo -e ${GRN} "Installing without TLS - exposing port 5678 directly" ${DEF}
+    sed -i "s/127.0.0.1:5678:5678/5678:5678/" docker-compose.yml
+fi
+
 docker compose up -d
 
 sleep 10
@@ -163,7 +169,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -175,7 +182,7 @@ n8n - Workflow Automation
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL above IMMEDIATELY - the first visitor becomes admin
   2. Create your admin account
   3. Start building workflows
 

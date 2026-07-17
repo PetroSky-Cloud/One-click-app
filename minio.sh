@@ -63,6 +63,11 @@ echo -e ${BLU} "Generating credentials..." ${DEF}
 MINIO_ROOT_USER="admin"
 MINIO_ROOT_PASSWORD=$(openssl rand -hex 16)
 
+MINIO_REDIRECT_LINE=""
+if [ -n "$DOMAIN" ]; then
+    MINIO_REDIRECT_LINE="MINIO_BROWSER_REDIRECT_URL: https://${DOMAIN}"
+fi
+
 echo -e ${BLU} "Creating docker-compose.yml..." ${DEF}
 cat > /opt/minio/docker-compose.yml << EOFCOMPOSE
 services:
@@ -72,10 +77,11 @@ services:
     restart: unless-stopped
     ports:
       - "9000:9000"
-      - "9001:9001"
+      - "127.0.0.1:9001:9001"
     environment:
       MINIO_ROOT_USER: ${MINIO_ROOT_USER}
       MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      ${MINIO_REDIRECT_LINE}
     volumes:
       - ./data:/data
     command: server /data --console-address ":9001"
@@ -87,7 +93,10 @@ MINIO_ROOT_USER=${MINIO_ROOT_USER}
 MINIO_ROOT_PASSWORD=${MINIO_ROOT_PASSWORD}
 EOFENV
 
-if [ -n "$DOMAIN" ]; then
+if [ -z "$DOMAIN" ]; then
+    echo -e ${GRN} "Installing without TLS - exposing console port 9001 directly" ${DEF}
+    sed -i "s/127.0.0.1:9001:9001/9001:9001/" /opt/minio/docker-compose.yml
+else
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 9001 false
 fi

@@ -115,7 +115,9 @@ echo -e "${YEL}  ACCESS URL:    ${GRN}${ACCESS_URL}${DEF}"
 echo -e "${YEL}  ADMIN PANEL:   ${GRN}${ACCESS_URL}/admin${DEF}"
 echo -e "${YEL}  ADMIN TOKEN:   ${GRN}${ADMIN_TOKEN}${DEF}"
 echo
-echo -e "${BLU}  Create your account at the main URL.${DEF}"
+echo -e "${RED}  IMPORTANT: Signups are OPEN - anyone can register on this server.${DEF}"
+echo -e "${RED}  Create your account NOW, then disable signups in the admin panel.${DEF}"
+echo
 echo -e "${BLU}  Use the admin panel to configure settings.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -130,10 +132,12 @@ Admin Panel: ${ACCESS_URL}/admin
 Admin Token: ${ADMIN_TOKEN}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - signups are open, anyone can register
   2. Create your account (email + master password)
-  3. Install browser extension or mobile app
-  4. Configure server URL to: ${ACCESS_URL}
+  3. Disable signups in the admin panel (${ACCESS_URL}/admin) after
+     creating your account
+  4. Install browser extension or mobile app
+  5. Configure server URL to: ${ACCESS_URL}
 
 Admin Panel:
   Access ${ACCESS_URL}/admin with the admin token above.

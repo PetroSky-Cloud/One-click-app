@@ -71,7 +71,7 @@ services:
     environment:
       - WEBUI_NAME=Open WebUI
       - ENABLE_SIGNUP=true
-      - DEFAULT_USER_ROLE=user
+      - DEFAULT_USER_ROLE=pending
       - WEBUI_SECRET_KEY=
     restart: unless-stopped
 
@@ -113,7 +113,9 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  First user to register becomes admin.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
+echo
 echo -e "${BLU}  Add your OpenAI/Anthropic API keys in Settings > Connections.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -124,6 +126,11 @@ Open WebUI
 ==========
 
 Access: ${ACCESS_URL}
+
+IMPORTANT: Open WebUI has no pre-set credentials. The first user to
+register becomes the administrator - create your account immediately
+after install. Subsequent signups are set to "pending" and cannot log
+in until the admin approves them (Admin Panel > Users).
 
 First-time setup:
   1. Open the URL above

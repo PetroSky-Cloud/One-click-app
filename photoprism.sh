@@ -63,6 +63,16 @@ echo -e ${BLU} "Generating secrets..." ${DEF}
 ADMIN_PASSWORD=$(openssl rand -hex 12)
 MARIADB_PASSWORD=$(openssl rand -hex 16)
 
+if [ -z "$MYIP" ]; then
+    MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+fi
+
+if [ -n "$DOMAIN" ]; then
+    ACCESS_URL="https://${DOMAIN}"
+else
+    ACCESS_URL="http://${MYIP}:2342"
+fi
+
 echo -e ${BLU} "Creating docker-compose.yml..." ${DEF}
 cat > /opt/photoprism/docker-compose.yml << EOFCOMPOSE
 services:
@@ -77,12 +87,12 @@ services:
       - seccomp:unconfined
       - apparmor:unconfined
     ports:
-      - "2342:2342"
+      - "127.0.0.1:2342:2342"
     environment:
       PHOTOPRISM_ADMIN_USER: "admin"
       PHOTOPRISM_ADMIN_PASSWORD: "${ADMIN_PASSWORD}"
       PHOTOPRISM_AUTH_MODE: "password"
-      PHOTOPRISM_SITE_URL: "http://localhost:2342/"
+      PHOTOPRISM_SITE_URL: "${ACCESS_URL}/"
       PHOTOPRISM_ORIGINALS_LIMIT: 5000
       PHOTOPRISM_HTTP_COMPRESSION: "gzip"
       PHOTOPRISM_LOG_LEVEL: "info"
@@ -150,7 +160,10 @@ ADMIN_PASSWORD=${ADMIN_PASSWORD}
 MARIADB_PASSWORD=${MARIADB_PASSWORD}
 EOFENV
 
-if [ -n "$DOMAIN" ]; then
+if [ -z "$DOMAIN" ]; then
+    echo -e ${GRN} "Installing without TLS - exposing port 2342 directly" ${DEF}
+    sed -i "s/127.0.0.1:2342:2342/2342:2342/" /opt/photoprism/docker-compose.yml
+else
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 2342 false
 fi
@@ -160,14 +173,6 @@ docker compose pull
 docker compose up -d
 
 sleep 30
-
-MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
-
-if [ -n "$DOMAIN" ]; then
-    ACCESS_URL="https://${DOMAIN}"
-else
-    ACCESS_URL="http://${MYIP}:2342"
-fi
 
 echo
 echo -e "${GRN}========================================================================${DEF}"

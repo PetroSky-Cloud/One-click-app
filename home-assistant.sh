@@ -144,7 +144,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Complete the onboarding wizard to create your account.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and complete the onboarding wizard.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -156,7 +157,7 @@ Home Assistant - Smart Home Automation
 Access: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - the first visitor can claim the admin account
   2. Create your admin account
   3. Set up your home location and units
   4. Start adding integrations and devices!

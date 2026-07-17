@@ -112,7 +112,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${YEL}  Register your admin account at the URL above.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and register the root admin account.${DEF}"
+echo -e "${RED}  The first visitor gains FULL control of this server.${DEF}"
 echo
 if [ -n "$DOMAIN" ]; then
     echo -e "${BLU}  TLS certificate will be obtained automatically by Traefik.${DEF}"
@@ -135,7 +136,8 @@ Coolify PaaS
 Access Coolify: ${ACCESS_URL}
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - the first visitor can claim the root
+     admin account and gains full control of this server
   2. Register your admin account (first user becomes admin)
 
 Custom Domain:

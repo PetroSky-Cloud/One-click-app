@@ -63,6 +63,10 @@ echo -e ${BLU} "Generating secrets..." ${DEF}
 MYSQL_ROOT_PASSWORD=$(openssl rand -hex 16)
 MYSQL_PASSWORD=$(openssl rand -hex 16)
 
+if [ -z "$MYIP" ]; then
+    MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+fi
+
 if [ -n "$DOMAIN" ]; then
     GHOST_URL="https://${DOMAIN}"
 else
@@ -77,7 +81,7 @@ services:
     container_name: ghost
     restart: unless-stopped
     ports:
-      - "2368:2368"
+      - "127.0.0.1:2368:2368"
     environment:
       url: ${GHOST_URL}
       database__client: mysql
@@ -114,7 +118,10 @@ MYSQL_PASSWORD=${MYSQL_PASSWORD}
 GHOST_URL=${GHOST_URL}
 EOFENV
 
-if [ -n "$DOMAIN" ]; then
+if [ -z "$DOMAIN" ]; then
+    echo -e ${GRN} "Installing without TLS - exposing port 2368 directly" ${DEF}
+    sed -i "s/127.0.0.1:2368:2368/2368:2368/" /opt/ghost/docker-compose.yml
+else
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
     curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/caddy.sh | bash -s -- $DOMAIN 2368 false
 fi
@@ -143,7 +150,8 @@ echo
 echo -e "${YEL}  BLOG URL:   ${GRN}${ACCESS_URL}${DEF}"
 echo -e "${YEL}  ADMIN URL:  ${GRN}${ADMIN_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your admin account at the admin URL.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the ADMIN URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  The first visitor to /ghost becomes the administrator.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -156,7 +164,7 @@ Blog: ${ACCESS_URL}
 Admin: ${ADMIN_URL}
 
 First-time setup:
-  1. Go to ${ADMIN_URL}
+  1. Go to ${ADMIN_URL} IMMEDIATELY - the first visitor becomes admin
   2. Create your admin account
   3. Start writing and publishing!
 

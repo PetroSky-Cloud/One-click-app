@@ -59,7 +59,8 @@ printf "${YEL}Please enter Admin User Name: ${DEF}"
 read ADMIN_USERNAME
 
 printf "${YEL}Please enter Admin Password: ${DEF}"
-read ADMIN_PASSWORD
+read -s ADMIN_PASSWORD
+echo
 
 printf "${YEL}Please enter Admin E-Mail: ${DEF}"
 read ADMIN_EMAIL
@@ -77,7 +78,21 @@ mkdir -p /opt/gitea/custom/conf/
 touch /opt/gitea/custom/conf/app.ini
 cd /opt/gitea
 echo -e ${BLU} "Downloading Gitea (latest version)" ${DEF}
-GITEA_VERSION=$(curl -s https://api.github.com/repos/go-gitea/gitea/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+GITEA_VERSION=""
+for ATTEMPT in 1 2 3; do
+    GITEA_VERSION=$(curl -s https://api.github.com/repos/go-gitea/gitea/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+    if [ -n "$GITEA_VERSION" ]; then
+        break
+    fi
+    sleep 5
+done
+
+if [ -z "$GITEA_VERSION" ]; then
+    echo -e "${RED}ERROR: Could not determine latest Gitea version from GitHub API.${DEF}"
+    echo -e "${YEL}Log in again to retry the installation.${DEF}"
+    return 1 2>/dev/null || exit 1
+fi
+
 wget -q -O gitea https://dl.gitea.com/gitea/${GITEA_VERSION}/gitea-${GITEA_VERSION}-linux-amd64
 chmod 755 gitea
 chown -R gitea:gitea /opt/gitea
@@ -86,9 +101,11 @@ chown -R gitea:gitea /opt/gitea
 if [ -n "$DOMAIN" ]; then
     ROOT_URL="https://${DOMAIN}/"
     SSH_DOMAIN="${DOMAIN}"
+    HTTP_ADDR_LINE="HTTP_ADDR = 127.0.0.1"
 else
     ROOT_URL="http://${MYIP}:3003/"
     SSH_DOMAIN="${MYIP}"
+    HTTP_ADDR_LINE=""
 fi
 
 cat > /opt/gitea/custom/conf/app.ini <<-EOF
@@ -112,6 +129,7 @@ ROOT = /opt/gitea/repos
 [server]
 DOMAIN = ${SSH_DOMAIN}
 HTTP_PORT = 3003
+${HTTP_ADDR_LINE}
 ROOT_URL = ${ROOT_URL}
 DISABLE_SSH = false
 SSH_PORT = 2222

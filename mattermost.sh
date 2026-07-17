@@ -92,6 +92,17 @@ apt-get -qqq -y install mattermost > /dev/null 2>&1
 jq '.SqlSettings.DataSource = "postgres://UUSSEERR:PPAASSWW@localhost/mattermost?sslmode=disable&connect_timeout=10&binary_parameters=yes"' /opt/mattermost/config/config.defaults.json \
 | sed -e s/UUSSEERR:PPAASSWW/mmuser:${PGPASS}/g > /opt/mattermost/config/config.json
 
+if [ -z "$MYIP" ]; then
+    MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+fi
+
+if [ -n "$DOMAIN" ]; then
+    sed -i 's|"ListenAddress": ":8065"|"ListenAddress": "127.0.0.1:8065"|' /opt/mattermost/config/config.json
+    sed -i "s|\"SiteURL\": \"\"|\"SiteURL\": \"https://${DOMAIN}\"|" /opt/mattermost/config/config.json
+else
+    sed -i "s|\"SiteURL\": \"\"|\"SiteURL\": \"http://${MYIP}:8065\"|" /opt/mattermost/config/config.json
+fi
+
 chmod 600 /opt/mattermost/config/config.json
 mkdir -p /opt/mattermost/data
 chown -R mattermost:mattermost /opt/mattermost/data
@@ -116,7 +127,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Create your admin account on first visit.${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -126,6 +138,10 @@ Mattermost - Team Messaging Platform
 =====================================
 
 Access: ${ACCESS_URL}
+
+IMPORTANT: Mattermost has no pre-set credentials. The first user to
+register becomes the System Admin - create your account immediately
+after install.
 
 First-time setup:
   1. Open the URL above

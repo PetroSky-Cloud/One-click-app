@@ -62,10 +62,16 @@ cd /opt/meilisearch
 curl -s https://raw.githubusercontent.com/meilisearch/meilisearch/main/download-latest.sh | bash > /dev/null 2>&1
 chown -R meilisearch:meilisearch /opt/meilisearch
 
+if [ -n "$DOMAIN" ]; then
+    HTTP_ADDR="127.0.0.1:7700"
+else
+    HTTP_ADDR="0.0.0.0:7700"
+fi
+
 cat > config.toml <<-EOF
 db_path = "/opt/meilisearch/data"
 env = "production"
-http_addr = "0.0.0.0:7700"
+http_addr = "${HTTP_ADDR}"
 master_key = "${MASTERKEY}"
 http_payload_size_limit = "100 MB"
 log_level = "INFO"
@@ -82,6 +88,9 @@ ssl_tickets = false
 experimental_enable_metrics = false
 experimental_reduce_indexing_memory_usage = false
 EOF
+
+chown meilisearch:meilisearch /opt/meilisearch/config.toml
+chmod 600 /opt/meilisearch/config.toml
 
 cat > /etc/systemd/system/meilisearch.service << 'EOFSVC'
 [Unit]

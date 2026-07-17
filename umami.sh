@@ -129,7 +129,8 @@ echo -e "${BLU}  Default credentials:${DEF}"
 echo -e "${YEL}    Username: ${GRN}admin${DEF}"
 echo -e "${YEL}    Password: ${GRN}umami${DEF}"
 echo
-echo -e "${BLU}  Change your password immediately after first login.${DEF}"
+echo -e "${RED}  IMPORTANT: Log in NOW and change the password immediately.${DEF}"
+echo -e "${RED}  The default credentials are public knowledge - anyone can log in.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -145,7 +146,7 @@ Default credentials:
   Password: umami
 
 First-time setup:
-  1. Open the URL above
+  1. Open the URL IMMEDIATELY - anyone can log in with the default credentials
   2. Login with default credentials
   3. Change admin password immediately
   4. Add your website to start tracking

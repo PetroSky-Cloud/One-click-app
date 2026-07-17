@@ -69,6 +69,12 @@ EOF
 systemctl  daemon-reload
 systemctl  restart  docker.service
 
+if [ -n "$DOMAIN" ]; then
+    APACHE_BINDING="127.0.0.1"
+else
+    APACHE_BINDING="0.0.0.0"
+fi
+
 sudo docker run -d \
     --init \
     --sig-proxy=false \
@@ -76,7 +82,7 @@ sudo docker run -d \
     --restart always \
     --publish 8080:8080 \
     --env APACHE_PORT=11000 \
-    --env APACHE_IP_BINDING=0.0.0.0 \
+    --env APACHE_IP_BINDING=${APACHE_BINDING} \
     --env APACHE_ADDITIONAL_NETWORK="" \
     --env SKIP_DOMAIN_VALIDATION=true \
     --volume nextcloud_aio_mastercontainer:/mnt/docker-aio-config \
@@ -102,6 +108,9 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  AIO ADMIN:   ${GRN}${AIO_URL}${DEF}"
 echo -e "${YEL}  NEXTCLOUD:   ${GRN}${ACCESS_URL}${DEF} (after AIO setup)"
+echo
+echo -e "${RED}  IMPORTANT: Open the AIO admin URL NOW.${DEF}"
+echo -e "${RED}  The setup UI on :8080 shows the initial passphrase to its FIRST visitor.${DEF}"
 echo
 echo -e "${BLU}  1. Open the AIO admin URL above${DEF}"
 echo -e "${BLU}  2. Accept the self-signed certificate warning${DEF}"
