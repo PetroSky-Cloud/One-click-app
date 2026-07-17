@@ -81,21 +81,14 @@ services:
       - "8080:80/tcp"
     environment:
       TZ: 'UTC'
-      WEBPASSWORD: '${WEBPASSWORD}'
-      FTLCONF_LOCAL_IPV4: '${MYIP}'
-      PIHOLE_DNS_: '1.1.1.1;8.8.8.8'
+      FTLCONF_webserver_api_password: '${WEBPASSWORD}'
+      FTLCONF_dns_upstreams: '1.1.1.1;8.8.8.8'
     volumes:
       - ./etc-pihole:/etc/pihole
       - ./etc-dnsmasq.d:/etc/dnsmasq.d
     cap_add:
       - NET_ADMIN
 EOFCOMPOSE
-
-echo -e ${BLU} "Creating environment file..." ${DEF}
-cat > /opt/pihole/.env << EOFENV
-WEBPASSWORD=${WEBPASSWORD}
-SERVER_IP=${MYIP}
-EOFENV
 
 if [ -n "$DOMAIN" ]; then
     echo -e ${BLU} "Setting up Caddy reverse proxy with TLS..." ${DEF}
@@ -158,7 +151,8 @@ Features:
   - DHCP server (optional)
 
 Change Password:
-  docker exec -it pihole pihole -a -p newpassword
+  Edit FTLCONF_webserver_api_password in /opt/pihole/docker-compose.yml
+  then: cd /opt/pihole && docker compose up -d
 
 Manage Pi-hole:
   cd /opt/pihole
@@ -170,10 +164,8 @@ Manage Pi-hole:
 Update Gravity (blocklists):
   docker exec -it pihole pihole -g
 
-Whitelist/Blacklist:
-  Use the admin panel or:
-  docker exec -it pihole pihole -w domain.com   # Whitelist
-  docker exec -it pihole pihole -b domain.com   # Blacklist
+Allow/Deny domains:
+  Use the admin panel (Domains section)
 
 Configuration: /opt/pihole/etc-pihole
 DNS Config: /opt/pihole/etc-dnsmasq.d
