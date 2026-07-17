@@ -4,7 +4,19 @@
 apt-get update
 apt-get install -y wget bash curl net-tools
 
-wget -O /etc/profile.d/install.sh -q https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/rallly.sh
+# Download installer with retry - a failed wget must not leave a silent 0-byte file
+for attempt in 1 2 3; do
+    wget -q -O /root/rallly-install.sh https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/rallly.sh && [ -s /root/rallly-install.sh ] && break
+    sleep 5
+done
+
+# Run the installer only for interactive root logins (not scp or ssh commands)
+cat > /etc/profile.d/install.sh <<'STUB'
+[ "$(id -u)" -eq 0 ] || return 0 2>/dev/null || exit 0
+case $- in *i*) ;; *) return 0 2>/dev/null || exit 0 ;; esac
+[ -t 0 ] || return 0 2>/dev/null || exit 0
+[ -s /root/rallly-install.sh ] && bash /root/rallly-install.sh
+STUB
 
 
 SERVICE_PASSWORD="{$service.password}"

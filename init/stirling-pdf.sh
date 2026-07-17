@@ -3,7 +3,19 @@
 apt-get update
 apt-get install -y wget bash curl net-tools
 
-wget -O /etc/profile.d/install.sh -q https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/stirling-pdf.sh
+# Download installer with retry - a failed wget must not leave a silent 0-byte file
+for attempt in 1 2 3; do
+    wget -q -O /root/stirling-pdf-install.sh https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/stirling-pdf.sh && [ -s /root/stirling-pdf-install.sh ] && break
+    sleep 5
+done
+
+# Run the installer only for interactive root logins (not scp or ssh commands)
+cat > /etc/profile.d/install.sh <<'STUB'
+[ "$(id -u)" -eq 0 ] || return 0 2>/dev/null || exit 0
+case $- in *i*) ;; *) return 0 2>/dev/null || exit 0 ;; esac
+[ -t 0 ] || return 0 2>/dev/null || exit 0
+[ -s /root/stirling-pdf-install.sh ] && bash /root/stirling-pdf-install.sh
+STUB
 
 SERVICE_PASSWORD="{$service.password}"
 SERVICE_DOMAIN="{$service.domain}"
