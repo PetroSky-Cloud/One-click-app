@@ -66,6 +66,11 @@ SECRET_KEY=$(openssl rand -hex 32)
 POSTGRES_PASSWORD=$(openssl rand -hex 16)
 ADMIN_PASSWORD=$(openssl rand -base64 12 | tr -d /=+ | head -c 12)
 
+PAPERLESS_URL_LINE=""
+if [ -n "$DOMAIN" ]; then
+    PAPERLESS_URL_LINE="PAPERLESS_URL: 'https://${DOMAIN}'"
+fi
+
 echo -e ${BLU} "Creating Docker Compose file..." ${DEF}
 cat > /opt/paperless/docker-compose.yml << EOFCOMPOSE
 services:
@@ -108,6 +113,7 @@ services:
       PAPERLESS_ADMIN_PASSWORD: '${ADMIN_PASSWORD}'
       PAPERLESS_OCR_LANGUAGE: eng
       PAPERLESS_TIME_ZONE: UTC
+      ${PAPERLESS_URL_LINE}
     restart: unless-stopped
 
 volumes:
