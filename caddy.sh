@@ -20,12 +20,30 @@ SECURE=$3
 echo -e ${BLU} "Downloading and installing Caddy Server (latest version)" ${DEF}
 mkdir -p /opt/caddy
 cd  /opt/caddy
-CADDY_VERSION=$(curl -s https://api.github.com/repos/caddyserver/caddy/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
-wget -q https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_amd64.tar.gz
-tar -zxf caddy_${CADDY_VERSION}_linux_amd64.tar.gz
+
+case "$(dpkg --print-architecture 2>/dev/null)" in
+    arm64) CADDY_ARCH=arm64 ;;
+    *) CADDY_ARCH=amd64 ;;
+esac
+
+CADDY_VERSION=$(curl -s --max-time 15 https://api.github.com/repos/caddyserver/caddy/releases/latest | grep '"tag_name":' | sed -E 's/.*"v([^"]+)".*/\1/')
+if [ -z "$CADDY_VERSION" ]; then
+    echo -e ${YEL} "GitHub API unavailable, using fallback Caddy version" ${DEF}
+    CADDY_VERSION=2.11.4
+fi
+
+for attempt in 1 2 3; do
+    wget -q -O caddy.tar.gz "https://github.com/caddyserver/caddy/releases/download/v${CADDY_VERSION}/caddy_${CADDY_VERSION}_linux_${CADDY_ARCH}.tar.gz" && [ -s caddy.tar.gz ] && break
+    sleep 5
+done
+if [ ! -s caddy.tar.gz ]; then
+    echo -e ${RED} "ERROR: could not download Caddy ${CADDY_VERSION} - TLS proxy NOT installed" ${DEF}
+    exit 1
+fi
+tar -zxf caddy.tar.gz
 
 
-if $SECURE ;
+if [ "$SECURE" = "true" ];
   then
 cat > /opt/caddy/caddyfile <<- EOF
 ${DOMAIN} {
@@ -74,4 +92,8 @@ systemctl  daemon-reload > /dev/null  2>&1
 systemctl  enable caddy.service > /dev/null  2>&1
 systemctl  restart caddy.service > /dev/null  2>&1
 
-echo -e ${BLU} Caddy server is sucessfully installed on $DOMAIN with upstream 127.0.0.1:${PORT} ${DEF}
+if systemctl is-active --quiet caddy.service; then
+    echo -e ${BLU} Caddy server is successfully installed on $DOMAIN with upstream 127.0.0.1:${PORT} ${DEF}
+else
+    echo -e ${RED} "WARNING: Caddy service failed to start - check: journalctl -u caddy" ${DEF}
+fi
