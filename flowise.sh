@@ -59,9 +59,21 @@ echo -e ${BLU} "Creating Flowise directories..." ${DEF}
 mkdir -p /opt/flowise
 
 echo -e ${BLU} "Generating secrets..." ${DEF}
-FLOWISE_PASSWORD=$(openssl rand -base64 12 | tr -d /=+ | head -c 12)
 FLOWISE_SECRETKEY_OVERWRITE=$(openssl rand -hex 16)
 PASSPHRASE=$(openssl rand -hex 16)
+JWT_AUTH_TOKEN_SECRET=$(openssl rand -hex 32)
+JWT_REFRESH_TOKEN_SECRET=$(openssl rand -hex 32)
+EXPRESS_SESSION_SECRET=$(openssl rand -hex 16)
+
+if [ -z "$MYIP" ]; then
+    MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+fi
+
+if [ -n "$DOMAIN" ]; then
+    ACCESS_URL="https://${DOMAIN}"
+else
+    ACCESS_URL="http://${MYIP}:3000"
+fi
 
 echo -e ${BLU} "Creating Docker Compose file..." ${DEF}
 cat > /opt/flowise/docker-compose.yml << EOFCOMPOSE
@@ -75,10 +87,12 @@ services:
     volumes:
       - flowise-data:/root/.flowise
     environment:
-      - FLOWISE_USERNAME=admin
-      - FLOWISE_PASSWORD=${FLOWISE_PASSWORD}
+      - APP_URL=${ACCESS_URL}
       - FLOWISE_SECRETKEY_OVERWRITE=${FLOWISE_SECRETKEY_OVERWRITE}
       - PASSPHRASE=${PASSPHRASE}
+      - JWT_AUTH_TOKEN_SECRET=${JWT_AUTH_TOKEN_SECRET}
+      - JWT_REFRESH_TOKEN_SECRET=${JWT_REFRESH_TOKEN_SECRET}
+      - EXPRESS_SESSION_SECRET=${EXPRESS_SESSION_SECRET}
       - DEBUG=false
       - LOG_LEVEL=info
     entrypoint: /bin/sh
@@ -105,14 +119,6 @@ docker compose up -d
 
 sleep 15
 
-MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
-
-if [ -n "$DOMAIN" ]; then
-    ACCESS_URL="https://${DOMAIN}"
-else
-    ACCESS_URL="http://${MYIP}:3000"
-fi
-
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo -e "${GRN}                   FLOWISE INSTALLATION COMPLETE                        ${DEF}"
@@ -120,9 +126,8 @@ echo -e "${GRN}=================================================================
 echo
 echo -e "${YEL}  ACCESS URL:  ${GRN}${ACCESS_URL}${DEF}"
 echo
-echo -e "${BLU}  Login Credentials:${DEF}"
-echo -e "${BLU}    Username: admin${DEF}"
-echo -e "${BLU}    Password: ${FLOWISE_PASSWORD}${DEF}"
+echo -e "${RED}  IMPORTANT: Open the URL NOW and create the admin account.${DEF}"
+echo -e "${RED}  The first visitor to this URL becomes the administrator.${DEF}"
 echo
 echo -e "${GRN}========================================================================${DEF}"
 echo
@@ -133,12 +138,11 @@ Flowise - LLM Workflow Builder
 
 Access: ${ACCESS_URL}
 
-Login Credentials:
-  Username: admin
-  Password: ${FLOWISE_PASSWORD}
+IMPORTANT: Flowise has no pre-set credentials. The first visitor to the
+URL creates the admin account - do this immediately after install.
 
 Quick Start:
-  1. Log in with credentials above
+  1. Open the URL and create your admin account
   2. Create a new chatflow
   3. Drag and drop components
   4. Connect to your LLM provider (OpenAI, Anthropic, etc.)
