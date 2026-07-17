@@ -51,22 +51,60 @@ while true; do
     fi
 done
 
+echo
+printf "${YEL}Please enter your e-mail address (used for TLS certificates): ${DEF}"
+read EMAIL
+
 echo -e ${BLU} "Installing Docker..." ${DEF}
 curl -s https://raw.githubusercontent.com/PetroSky-Cloud/One-click-app/main/docker.sh | bash
 
 echo -e ${BLU} "Installing Appwrite..." ${DEF}
 
+# Appwrite terminates TLS itself (Let's Encrypt on 80/443) - no Caddy needed
+cd /opt
 docker run --rm \
     --volume /var/run/docker.sock:/var/run/docker.sock \
-    --volume "$(pwd)"/appwrite:/usr/src/code/appwrite:rw \
+    --volume /opt/appwrite:/usr/src/code/appwrite:rw \
     --entrypoint="install" \
-    appwrite/appwrite:1.8.0
+    appwrite/appwrite:1.9.5 \
+    --http-port 80 --https-port 443 --interactive=n --no-start
+
+if [ -z "$MYIP" ]; then
+    MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+fi
 
 if [ -n "$DOMAIN" ]; then
     ACCESS_URL="https://${DOMAIN}"
+    APP_DOMAIN="${DOMAIN}"
 else
     ACCESS_URL="http://${MYIP}"
+    APP_DOMAIN="${MYIP}"
 fi
+
+cd /opt/appwrite
+
+set_env() {
+    if grep -q "^$1=" .env; then
+        sed -i "s|^$1=.*|$1=$2|" .env
+    else
+        echo "$1=$2" >> .env
+    fi
+}
+set_env _APP_ENV production
+set_env _APP_DOMAIN "${APP_DOMAIN}"
+set_env _APP_DOMAIN_TARGET_A "${MYIP}"
+if [ -n "$EMAIL" ]; then
+    set_env _APP_SYSTEM_SECURITY_EMAIL_ADDRESS "${EMAIL}"
+fi
+
+echo -e ${BLU} "Starting Appwrite (this may take a few minutes)..." ${DEF}
+docker compose up -d
+
+echo -e ${BLU} "Waiting for Appwrite to become ready..." ${DEF}
+for i in $(seq 1 36); do
+    curl -s -o /dev/null http://127.0.0.1:80 && break
+    sleep 5
+done
 
 echo
 echo -e "${GRN}========================================================================${DEF}"
@@ -86,11 +124,18 @@ Appwrite - Backend as a Service
 
 Access: ${ACCESS_URL}
 
+First-time setup:
+  Open the URL above and create your admin account immediately -
+  the first visitor to the console can register as administrator.
+
 Manage Appwrite:
-  cd appwrite
+  cd /opt/appwrite
   docker compose ps              # Check status
   docker compose logs -f         # View logs
   docker compose restart         # Restart
+
+Configuration: /opt/appwrite/.env
+  Apply changes with: cd /opt/appwrite && docker compose up -d
 
 Documentation: https://appwrite.io/docs
 
