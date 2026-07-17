@@ -73,18 +73,23 @@ cd /opt
 git clone --depth 1 https://github.com/RocketChat/rocketchat-compose.git
 cd rocketchat-compose
 
+if [ -z "$MYIP" ]; then
+    MYIP=$(curl -4s --max-time 10 ifconfig.me 2>/dev/null || curl -4s --max-time 10 icanhazip.com 2>/dev/null || echo "YOUR_SERVER_IP")
+fi
+
+# Traefik routes by Host header - with no domain, route by the server IP
 if [ -n "$DOMAIN" ]; then
+    TRAEFIK_DOMAIN="${DOMAIN}"
     ROOT_URL="https://${DOMAIN}"
 else
+    TRAEFIK_DOMAIN="${MYIP}"
     ROOT_URL="http://${MYIP}:8000"
 fi
 
 cat > .env <<- EOF
-#!/bin/sh
-
 # Change these
 REG_TOKEN=
-DOMAIN=${DOMAIN}
+DOMAIN=${TRAEFIK_DOMAIN}
 ROOT_URL=${ROOT_URL}
 RELEASE=latest
 # Change to true after you set your domain and valid lets encrypt email
@@ -110,8 +115,9 @@ GRAFANA_HOST_PORT=5050
 TRAEFIK_HTTP_PORT=8000
 TRAEFIK_DASHBOARD_PORT=8080
 TRAEFIK_HTTPS_PORT=8443
-# Port for Grafana to be accessed externally
-GRAFANA_HOST_PORT=5050
+
+# Rocket.Chat and metrics ports stay local - traefik handles external traffic
+BIND_IP=127.0.0.1
 
 # MongoDB
 MONGODB_BIND_IP=127.0.0.1
